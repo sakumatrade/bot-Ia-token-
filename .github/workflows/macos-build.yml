@@ -1,0 +1,50 @@
+name: macOS app build
+
+# This is the closest real equivalent to "Xcode online": GitHub's macOS
+# runners ship Xcode and the Swift toolchain pre-installed, so this job
+# compiles and tests the SwiftUI app with the actual Apple toolchain,
+# without anyone needing a personal Mac. It is not an interactive Xcode
+# session — it is a real, verifiable build.
+
+on:
+  push:
+    branches:
+      - "**"
+    paths:
+      - "macapp/**"
+      - ".github/workflows/macos-build.yml"
+  pull_request:
+    paths:
+      - "macapp/**"
+      - ".github/workflows/macos-build.yml"
+  workflow_dispatch: {}
+
+jobs:
+  build-and-test:
+    runs-on: macos-14
+    defaults:
+      run:
+        working-directory: macapp
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show toolchain versions
+        run: |
+          xcodebuild -version
+          swift --version
+
+      - name: Build (debug)
+        run: swift build --package-path . -c debug
+
+      - name: Run tests
+        run: swift test --package-path . -c debug
+
+      - name: Build (release)
+        run: swift build --package-path . -c release
+
+      - name: Upload release binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: broker-sakuma-macos-binary
+          path: macapp/.build/release/BrokerSakuma
+          if-no-files-found: error
