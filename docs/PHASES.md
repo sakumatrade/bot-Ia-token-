@@ -299,20 +299,55 @@ endpoints, since transfers aren't built yet either).
   today it's only exercised with caller-supplied evidence, same as the
   rest of the research layer until real integrations exist.
 
-## Cumulative test count: 128 Python (`pytest -q` in `backend/`) + 7 Swift
+## Phase 11 — PumpFunMonitor + MockPumpFunProvider
+
+**Completed.**
+- Files: `backend/src/broker_sakuma/adapters/pumpfun/{provider,
+  mock_provider,monitor}.py`.
+- Features: `PumpFunProvider` is a `Protocol` interface (spec section 3's
+  adapter separation) — `PumpFunMonitor` never talks to a data source
+  directly. `MockPumpFunProvider` is explicitly, loudly documented as not
+  real: it only replays launches the caller pushed into it, and clears
+  after each poll like a real feed would, so nothing about its behavior
+  could be mistaken for a live integration. The pipeline runs
+  New Launch -> Creator Analysis -> Token Analysis -> Liquidity Analysis
+  -> Risk Analysis exactly as spec section 22 lists, registering
+  creator/token rows idempotently and logging every evaluation as an
+  `Opportunity` (classification DATA, category LAUNCHPAD) for the
+  Research Lab. **Deliberate scope boundary**: the pipeline only ever
+  outputs `WATCH` or `IGNORE`, never `BUY`/`SELL` — spec section 22 also
+  says the pipeline ends "Strategy -> Risk Engine -> BUY/SELL/WATCH/
+  IGNORE", but wiring straight to a buy/sell decision without a real
+  Strategy proposing a concrete, priced order would mean simulating an
+  integration (discovery-to-execution) that doesn't actually exist yet —
+  precisely what section 61 forbids. A real `BUY`/`SELL` still has to come
+  from a Strategy's concrete order going through the already-tested
+  `RiskEngine`/`PaperExecutor` from Phase 3-4. A known bad-actor creator
+  (flagged via `Creator.risk_notes`) is always `IGNORE`d regardless of
+  liquidity.
+- Tests: `test_pumpfun_monitor.py` — 8 tests, including one asserting the
+  pipeline structurally never returns anything but WATCH/IGNORE. 136 tests
+  passing overall.
+- Known limitations: no real Pump.fun data source is wired in (none
+  exists to wire in — no official public API contract was available to
+  implement against); `_analyze_risk` is a simple, transparent rule set
+  (flagged creator / high launch velocity / low liquidity), not a learned
+  or statistical model.
+
+## Cumulative test count: 136 Python (`pytest -q` in `backend/`) + 7 Swift
 (`swift test --package-path macapp`, verified via CI, not run locally).
 
 ## Next phases (not yet built)
 
-11 (Pump.fun adapter), 12 (wallet manager + Keychain signer), 13
-(Telegram), 14 (Safari extension), 15 (macOS *packaging* — .app bundle +
-.dmg + notarization — still requires a Mac; CI here only proves the Swift
-code builds, it does not assemble or sign a distributable app), 16
-(security hardening pass), 17 (full integration testing). The SwiftUI app
-can now be pointed at a real, running Local API (see the root README's
-"Running the Local API" section) — that wiring (actually running both
-together end-to-end on a Mac) still needs to be verified there, since
-this container can't run the macOS app itself.
+12 (wallet manager + Keychain signer), 13 (Telegram), 14 (Safari
+extension), 15 (macOS *packaging* — .app bundle + .dmg + notarization —
+still requires a Mac; CI here only proves the Swift code builds, it does
+not assemble or sign a distributable app), 16 (security hardening pass),
+17 (full integration testing). The SwiftUI app can now be pointed at a
+real, running Local API (see the root README's "Running the Local API"
+section) — that wiring (actually running both together end-to-end on a
+Mac) still needs to be verified there, since this container can't run the
+macOS app itself.
 
 ## macOS app — what the user needs to do on their own Mac
 
