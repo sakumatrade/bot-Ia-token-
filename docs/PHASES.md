@@ -64,12 +64,90 @@ app cannot be compiled/packaged here (needs a real Mac + Xcode).
   never be trapped holding a position it cannot exit — this was caught and
   fixed during test-writing (see git history).
 
+## Phase 5 — Mother Bot + Son lineage + ThesisEngine ($5 rule)
+
+**Completed.**
+- Files: `backend/src/broker_sakuma/engines/{lineage_engine,thesis_engine}.py`.
+- Features: `LineageEngine` creates the Mother Bot and spawns Son bots with
+  full lineage rows, lifecycle events and audit logs; enforces
+  `max_bots`/`max_generations` from `GrowthPolicyConfig`; exposes a
+  `lineage_tree()` view. `ThesisEngine` implements the full state machine
+  (RESEARCH -> BACKTEST -> PAPER -> INITIAL_TEST -> VALIDATION -> REVIEW ->
+  APPROVED -> DISABLED) and — the load-bearing rule — `start_initial_test()`
+  takes no capital argument at all, so it can only ever allocate
+  `ThesisPolicyConfig.initial_test_capital_usd` ($5 by default), regardless
+  of how much the Mother Bot's treasury holds. Escalation only moves one
+  rung at a time on an explicit ladder, and only once APPROVED.
+- Tests: `test_lineage_engine.py`, `test_thesis_engine.py` — 14 tests,
+  including one that explicitly funds Mother with $5,000,000 and asserts
+  the next thesis still gets exactly $5.
+- Known limitations: son auto-naming is a flat counter (`Son 003`), not the
+  letter-branch scheme shown illustratively in the spec (`001-A`); callers
+  can still pass an explicit name to get that shape by hand.
+
+## Phase 6 — Death + Post-mortem + Collective Memory + Resurrection
+
+**Completed.**
+- Files: `backend/src/broker_sakuma/engines/{post_mortem_engine,
+  collective_memory,resurrection_engine}.py`.
+- Features: `BotPostMortemEngine` creates an append-only post-mortem
+  (only for a bot already `DEAD`) capturing entry/exit price, slippage,
+  liquidity, market condition, probable cause, failed hypothesis, and the
+  rule that should have prevented the loss; `confirm_cause()` updates in
+  place, never replacing the original record. `CollectiveMemoryStore`
+  records classified knowledge (`InfoClassification`) and can be queried
+  by tag. `BotResurrectionEngine` spawns a new versioned bot
+  (`Son 017` -> `Son 017-R1` -> `Son 017-R1-R1`, ...) whose lineage row
+  carries `previous_failure`/`correction`, and records both the failure and
+  the correction into collective memory.
+- Tests: `test_post_mortem_and_memory.py`,
+  `test_resurrection_engine.py` — 7 tests, including a full
+  death -> post-mortem -> resurrection -> new-$5-thesis cycle (spec
+  section 54) and a double-resurrection version-suffix check.
+- Known limitations: resurrection is triggered explicitly by a caller
+  (e.g., an operator or a future automated learning step), not
+  auto-triggered the instant `MaximumLossPolicy` kills a bot — post-mortem
+  creation is deliberately a separate, explicit step so a human/learning
+  process supplies `probable_cause`/`correction` rather than the system
+  guessing at them.
+
+## Phase 7 — Loans + Interest + Daily Settlement + Reserve
+
+**Completed.**
+- Files: `backend/src/broker_sakuma/engines/{loan_engine,
+  loan_interest_engine,daily_settlement_engine,reserve_growth_engine}.py`.
+- Features: `BotLoanEngine` enforces Mother's exposure ceiling
+  (`LoanPolicyConfig.mother_max_total_loan_pct_of_treasury`, e.g. Mother
+  with $1,000 and a 20% limit can never have more than $200 outstanding —
+  spec section 57) and records loans/payments with full balance tracking.
+  `BotLoanInterestEngine` implements FIXED/PROFIT_SHARE/HYBRID models;
+  PROFIT_SHARE and the profit-linked half of HYBRID floor at zero on a
+  loss (never invents profit). `DailySettlementEngine` splits a profitable
+  day's net result across retained-operational/reserve/returned-to-Mother
+  using explicit configured percentages, and never distributes a loss into
+  reserve or Mother — it's carried entirely as reduced operational
+  capital. `ReserveGrowthEngine` is the single source of truth for a bot's
+  (or Mother's) reserve balance, separate from operational/borrowed
+  capital.
+- Tests: `test_loan_engine.py`, `test_settlement_and_reserve.py` — 14
+  tests, including the exact $1,000/20%/$200 exposure scenario (section
+  57), the $100-loan/$20-profit/profit-share-interest scenario (section
+  56), and a two-day reserve-accumulation test proving a new thesis still
+  starts at $5 even with a large reserve (section 55).
+- Known limitations: `DailySettlementEngine.settle()` takes
+  `gross_result_usd` as a caller-supplied number rather than aggregating
+  it itself from `paper_trades`/`trades` for the day — that aggregation
+  belongs in the scheduler/API layer built in a later phase, once there's
+  an actual daily cron to drive it.
+
+## Cumulative test count: 68 passing (`pytest -q` in `backend/`).
+
 ## Next phases (not yet built)
 
-5 (Mother/Son lineage + $5-rule ThesisEngine), 6 (death/post-mortem/
-resurrection/collective memory), 7 (loans/interest/daily settlement/
-reserve), 8 (learning/backtesting), 9 (bot communication), 10 (research
+8 (learning/backtesting), 9 (bot communication + BotCouncil), 10 (research
 lab/protocol discovery), 11 (Pump.fun adapter), 12 (wallet manager +
 Keychain signer), 13 (Telegram), 14 (Safari extension), 15 (macOS
 packaging — requires a Mac), 16 (security hardening pass), 17 (full
-integration testing).
+integration testing), plus the FastAPI Local API (section 38) and the
+SwiftUI dashboard/menu-bar app (sections 5, 6, 40) that will actually call
+into everything built so far.
