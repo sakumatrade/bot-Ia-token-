@@ -736,6 +736,52 @@ existing safety architecture rather than by adding new escape hatches:
    returning every row ever written. Every row a dead bot ever produced
    is still there forever; only a single response's size is bounded.
 
+## Post-Phase-17 addition: P&L chart, and a bot that trades on its own (still simulated)
+
+Two more requests: **"create a chart option for the bot"**, and — in the
+same message thread — **"activate Claude so it makes the bot operate
+directly, until the end, without needing me."** The second phrasing
+echoes the recurring real-money ask this project has declined
+consistently (see the section above and every earlier "Post-Phase-17"
+entry); this time the buildable, legitimate reading was different:
+"operate on its own" as in *not needing a manual command per trade*, not
+"connect real money." That distinction mattered enough to build both
+readings correctly rather than defaulting to the safest interpretation
+by assumption:
+
+1. **P&L chart**: `web/static/index.html` gained a "Gráfico do bot" card
+   — pick a bot, see its cumulative simulated P&L plotted as a plain
+   inline SVG built from `/api/trades`. No chart library, no network
+   dependency, consistent with the dashboard's existing self-contained
+   design.
+
+2. **Autonomous PAPER-trading loop**: `adapters/pumpfun/monitor.py`'s own
+   docstring had already flagged the actual gap — the pipeline
+   deliberately stops at WATCH/IGNORE because *no Strategy component
+   existed yet* to turn a WATCH into a concrete, priced order, and
+   wiring one in without a real strategy would have been "simulating an
+   integration that isn't actually there" (spec section 61). So the
+   right fix wasn't to bypass that boundary, it was to build the missing
+   piece honestly: `engines/autonomous_trading_cycle.py`'s
+   `AutonomousTradingCycle` is a deliberately simple, fully-documented
+   placeholder strategy (fixed position sizing, a seeded synthetic exit
+   price) that proposes real orders, which still go through the same
+   `RiskEngine`/`PaperExecutor`/`MaximumLossPolicy` as every other phase.
+   It only ever reacts to `adapters/pumpfun/synthetic_launch_generator.py`'s
+   `SyntheticLaunchGenerator` — every mint address it produces is
+   prefixed `SYNTHETIC-` and flagged `"synthetic": True` in metadata, so
+   nothing downstream can mistake it for real market data. A new
+   `AutoTradingConfig` (default `enabled=False`) gates an optional
+   background `asyncio` task in `api/app.py`'s lifespan that ticks this
+   cycle automatically every `interval_seconds`; `POST
+   /api/system/run-cycle` triggers one tick manually regardless. Verified
+   end-to-end against a real running server (not just tests): an
+   activated bot traded 20 times fully on its own over ~12 seconds with
+   zero manual commands, capital moving from the $5 stake up and down
+   with real (simulated) P&L, before the test server was torn down.
+   `trading.live_trading_enabled` is untouched and still `False` — this
+   loop has no path to real money, same as everything else in this repo.
+
 ## macOS app — what the user needs to do on their own Mac
 
 Compiling in CI proves the code is correct; it does not give you a

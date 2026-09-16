@@ -117,6 +117,7 @@
     color: var(--text);
   }
   details summary { cursor: pointer; font-size: 13px; color: var(--muted); }
+  .chart-svg { width: 100%; height: 180px; display: block; }
 </style>
 </head>
 <body>
@@ -154,6 +155,16 @@
   <div class="card">
     <strong>O que o bot está fazendo</strong>
     <ul class="plain" id="bots-list"><li class="hint">—</li></ul>
+  </div>
+
+  <div class="card">
+    <strong>Gráfico do bot</strong>
+    <div class="settings-row" style="margin-top: 8px;">
+      <select id="chart-bot-select"><option value="">Selecione um bot…</option></select>
+    </div>
+    <div id="chart-container" style="margin-top: 10px;">
+      <p class="hint">Selecione um bot para ver o histórico de P&amp;L simulado.</p>
+    </div>
   </div>
 
   <div class="card">
@@ -377,6 +388,82 @@
     } catch (err) {
       list.innerHTML = '<li class="hint">' + escapeHtml(messageFor(err)) + "</li>";
     }
+  }
+
+  function renderPnlChart(trades) {
+    const container = document.getElementById("chart-container");
+    if (!trades.length) {
+      container.innerHTML = '<p class="hint">Este bot ainda não fez nenhuma operação simulada.</p>';
+      return;
+    }
+
+    const sorted = trades.slice().sort((a, b) => new Date(a.executed_at) - new Date(b.executed_at));
+    let cumulative = 0;
+    const points = sorted.map((t) => (cumulative += t.simulated_pnl_usd));
+
+    const width = 640;
+    const height = 180;
+    const pad = 8;
+    const min = Math.min(0, ...points);
+    const max = Math.max(0, ...points);
+    const range = max - min || 1;
+    const stepX = points.length > 1 ? (width - pad * 2) / (points.length - 1) : 0;
+    const toY = (v) => (height - pad - ((v - min) / range) * (height - pad * 2)).toFixed(1);
+    const coords = points.map((v, i) => (pad + i * stepX).toFixed(1) + "," + toY(v)).join(" ");
+    const zeroY = toY(0);
+    const last = points[points.length - 1];
+    const color = last >= 0 ? "var(--green)" : "var(--red)";
+
+    container.innerHTML =
+      '<svg viewBox="0 0 ' + width + " " + height + '" class="chart-svg" preserveAspectRatio="none">' +
+      '<line x1="' + pad + '" y1="' + zeroY + '" x2="' + (width - pad) + '" y2="' + zeroY + '" stroke="var(--border)" stroke-width="1" />' +
+      '<polyline points="' + coords + '" fill="none" stroke="' + color + '" stroke-width="2" />' +
+      "</svg>" +
+      '<div class="hint" style="margin-top: 4px;">P&L acumulado simulado: <strong style="color:' +
+      color +
+      '">' +
+      fmtUsd(last) +
+      "</strong> em " +
+      points.length +
+      " operações simuladas</div>";
+  }
+
+  async function refreshChartBotOptions() {
+    const select = document.getElementById("chart-bot-select");
+    try {
+      const bots = await api("/api/bots");
+      const previousValue = select.value;
+      select.innerHTML =
+        '<option value="">Selecione um bot…</option>' +
+        bots
+          .map((b) => '<option value="' + escapeHtml(b.id) + '">' + escapeHtml(b.name) + " (" + escapeHtml(b.state) + ")</option>")
+          .join("");
+      if (previousValue && bots.some((b) => b.id === previousValue)) {
+        select.value = previousValue;
+      }
+    } catch (err) {
+      // refreshBots() already surfaces this error in the "O que o bot está fazendo" card.
+    }
+  }
+
+  async function refreshChart() {
+    const select = document.getElementById("chart-bot-select");
+    const container = document.getElementById("chart-container");
+    const botId = select.value;
+    if (!botId) {
+      container.innerHTML = '<p class="hint">Selecione um bot para ver o histórico de P&amp;L simulado.</p>';
+      return;
+    }
+    try {
+      const trades = await api("/api/trades?limit=1000");
+      renderPnlChart(trades.filter((t) => t.bot_id === botId));
+    } catch (err) {
+      container.innerHTML = '<p class="hint">' + escapeHtml(messageFor(err)) + "</p>";
+    }
+  }
+
+  function initChart() {
+    document.getElementById("chart-bot-select").addEventListener("change", refreshChart);
   }
 
   function initAddWalletForm() {

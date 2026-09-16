@@ -108,6 +108,22 @@ class TradingConfig(BaseModel):
     live_trading_enabled: bool = False
 
 
+class AutoTradingConfig(BaseModel):
+    """Autonomous PAPER-trading loop: once enabled, active bots watch and
+    trade against synthetic mock launches on their own, with no manual
+    `/api/system/run-cycle` call needed per trade. This is entirely
+    separate from — and can never enable — real/live trading:
+    `TradingConfig.live_trading_enabled` stays False regardless of this
+    flag, and this loop only ever executes through the same
+    `PaperExecutor` every other phase uses.
+    """
+
+    enabled: bool = False
+    interval_seconds: float = 10.0
+    launches_per_cycle: int = 1
+    position_fraction_of_capital: float = 0.5
+
+
 class ProtocolRiskScoreConfig(BaseModel):
     """Protocol Risk Score weights (spec section 24). 0 = safest, 100 =
     riskiest. Deliberately scored only from evidence the schema actually
@@ -158,6 +174,7 @@ class Settings(BaseSettings):
     growth: GrowthPolicyConfig = Field(default_factory=GrowthPolicyConfig)
     telegram: TelegramConfig = Field(default_factory=TelegramConfig)
     trading: TradingConfig = Field(default_factory=TradingConfig)
+    auto_trading: AutoTradingConfig = Field(default_factory=AutoTradingConfig)
     local_api: LocalAPIConfig = Field(default_factory=LocalAPIConfig)
     protocol_risk_score: ProtocolRiskScoreConfig = Field(default_factory=ProtocolRiskScoreConfig)
 

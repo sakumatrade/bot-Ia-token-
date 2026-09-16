@@ -209,5 +209,15 @@ class SystemActionResponse(BaseModel):
     system_state: str
 
 
+class RunCycleResponse(BaseModel):
+    """One tick of the autonomous PAPER-trading loop — simulated only,
+    against synthetic mock launches (see
+    ``engines/autonomous_trading_cycle.py``)."""
+
+    decisions_evaluated: int
+    trades_executed: int
+    bots_died: list[str]
+
+
 class KillSwitchRequest(BaseModel):
     reason: str

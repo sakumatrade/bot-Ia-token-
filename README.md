@@ -126,6 +126,48 @@ endpoints to request a different starting amount — the $5 rule is
 enforced by `ThesisEngine.start_initial_test`, which takes no capital
 argument at all.
 
+## Autonomous PAPER-trading loop (bots that trade on their own)
+
+By default, an activated bot only trades when something tells it to
+(e.g. `POST /api/system/run-cycle`, or a script calling `PaperExecutor`
+directly). To have every `ACTIVE` bot with a started thesis watch and
+trade **on its own, with no command needed per trade**, enable the
+autonomous loop before starting the backend:
+
+```bash
+export BROKER_SAKUMA_LOCAL_API__API_KEY="choose-a-long-random-secret"
+export BROKER_SAKUMA_AUTO_TRADING__ENABLED=true
+export BROKER_SAKUMA_AUTO_TRADING__INTERVAL_SECONDS=10   # how often it ticks
+uvicorn broker_sakuma.api.app:create_app --factory --port 8765
+```
+
+Every tick, it generates a handful of clearly-labeled **synthetic** mock
+launches (`SyntheticLaunchGenerator` — mint addresses always start with
+`SYNTHETIC-`), runs them through the same `PumpFunMonitor` triage as the
+rest of the pipeline, and for anything that clears the risk bar, proposes
+and executes a small simulated buy/sell round trip through the same
+`PaperExecutor` (and therefore the same `RiskEngine` and
+`MaximumLossPolicy`) every other phase already uses. A bot can still die
+from this — the loop doesn't bypass any safety check, it just removes the
+need for you to trigger each trade by hand. See
+`engines/autonomous_trading_cycle.py` for the full explanation of why
+this can never become live trading (`trading.live_trading_enabled` stays
+`False` regardless of this flag) and why it can never be pointed at a
+real Pump.fun feed.
+
+You can also trigger a single tick manually at any time, loop enabled or
+not:
+```bash
+curl -s -X POST -H "X-API-Key: $API_KEY" http://127.0.0.1:8765/api/system/run-cycle
+```
+
+## P&L chart per bot
+
+The browser dashboard (`/dashboard`) has a "Gráfico do bot" card: pick a
+bot from the dropdown to see its cumulative simulated P&L plotted over
+its trade history — drawn as a plain inline SVG from `/api/trades`, no
+external chart library or network dependency.
+
 ## Telegram profit notifications
 
 To get a message whenever a bot's trade closes with a profit:
