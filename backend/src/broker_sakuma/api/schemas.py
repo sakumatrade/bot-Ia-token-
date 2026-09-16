@@ -133,6 +133,19 @@ class ReserveSummary(BaseModel):
     balance_usd: float
 
 
+class WalletSummary(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    name: str
+    blockchain: str
+    wallet_type: str
+    kind: str
+    public_address: str
+    purpose: str | None
+    is_active: bool
+
+
 class GrowthResponse(BaseModel):
     max_bots: int
     max_generations: int

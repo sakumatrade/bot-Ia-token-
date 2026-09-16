@@ -334,20 +334,56 @@ endpoints, since transfers aren't built yet either).
   (flagged creator / high launch velocity / low liquidity), not a learned
   or statistical model.
 
-## Cumulative test count: 136 Python (`pytest -q` in `backend/`) + 7 Swift
+## Phase 12 — WalletManager + Signer abstraction
+
+**Completed for the backend half; the Keychain-backed half is inherently
+macOS-only and not built here.**
+- Files: `backend/src/broker_sakuma/engines/{wallet_manager,signer}.py`.
+- Features: `WalletManager` handles everything the GUI in spec section 32
+  needs — add, rename, activate/deactivate, list (all or active-only),
+  update address — all as metadata only. Duplicate `(blockchain,
+  public_address)` pairs are rejected; the same literal address string is
+  allowed across different blockchains (different address namespaces).
+  Changing a **Receiving Wallet**'s address requires an explicit
+  `extra_authorization=True` (spec section 34); every other wallet type's
+  address can change without it. `Signer` is a `Protocol`; `WatchOnlySigner`
+  is the only concrete signer this backend can construct, and it always
+  raises `SigningNotPermittedError` — proving the watch-only/signing split
+  is a real code boundary, not just a label. Asking for a signer on a
+  `SIGNING`-kind wallet raises `SignerNotAvailableError`: this backend
+  deliberately has **no** working signer implementation, because a real
+  one needs the macOS Keychain, which a Linux backend cannot reach. That
+  signer is future work on the Swift side, reached over the Local API only
+  once live execution exists (it doesn't yet — trading stays disabled).
+  Also added `GET /api/wallets` to the Local API.
+- Tests: `test_wallet_manager.py`, `test_signer.py`,
+  `test_wallet_model_never_stores_secrets.py` — 12 tests. The last one is
+  a structural guarantee, in the same spirit as the LearningEngine AST
+  test and the ProtocolStatus enum test: it inspects `Wallet`'s actual
+  SQLAlchemy columns and asserts none of them could hold a private key,
+  seed phrase, mnemonic, or password — so a secret can't leak into this
+  database even by a future developer's mistake, not just by policy.
+  148 tests passing overall.
+- Known limitations: no Keychain-backed `Signer` exists (can't exist here
+  — needs Swift/macOS); no macOS Wallet Manager GUI yet (the SwiftUI app
+  from Phase 2 only has the dashboard/menu bar so far); the "never share
+  your recovery phrase" warning copy from spec section 34 belongs in that
+  future GUI, not the backend.
+
+## Cumulative test count: 148 Python (`pytest -q` in `backend/`) + 7 Swift
 (`swift test --package-path macapp`, verified via CI, not run locally).
 
 ## Next phases (not yet built)
 
-12 (wallet manager + Keychain signer), 13 (Telegram), 14 (Safari
-extension), 15 (macOS *packaging* — .app bundle + .dmg + notarization —
-still requires a Mac; CI here only proves the Swift code builds, it does
-not assemble or sign a distributable app), 16 (security hardening pass),
-17 (full integration testing). The SwiftUI app can now be pointed at a
-real, running Local API (see the root README's "Running the Local API"
-section) — that wiring (actually running both together end-to-end on a
-Mac) still needs to be verified there, since this container can't run the
-macOS app itself.
+13 (Telegram), 14 (Safari extension), 15 (macOS *packaging* — .app bundle
++ .dmg + notarization — still requires a Mac; CI here only proves the
+Swift code builds, it does not assemble or sign a distributable app), 16
+(security hardening pass), 17 (full integration testing), plus the
+Wallet Manager GUI and Keychain-backed Signer on the SwiftUI side. The
+SwiftUI app can now be pointed at a real, running Local API (see the root
+README's "Running the Local API" section) — that wiring (actually running
+both together end-to-end on a Mac) still needs to be verified there,
+since this container can't run the macOS app itself.
 
 ## macOS app — what the user needs to do on their own Mac
 

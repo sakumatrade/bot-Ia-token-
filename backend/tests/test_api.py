@@ -123,7 +123,7 @@ def test_kill_switch_without_api_key_is_rejected(client):
 
 
 def test_empty_lists_are_returned_for_untouched_resources(client, auth_headers):
-    for path in ("/api/opportunities", "/api/trades", "/api/strategies", "/api/alerts", "/api/research", "/api/loans", "/api/reserves"):
+    for path in ("/api/opportunities", "/api/trades", "/api/strategies", "/api/alerts", "/api/research", "/api/loans", "/api/reserves", "/api/wallets"):
         response = client.get(path, headers=auth_headers)
         assert response.status_code == 200, path
         assert response.json() == []

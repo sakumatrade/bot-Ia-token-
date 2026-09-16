@@ -14,6 +14,7 @@ from broker_sakuma.api.schemas import (
     ResearchReportSummary,
     AlertSummary,
     StrategySummary,
+    WalletSummary,
 )
 from broker_sakuma.config import Settings
 from broker_sakuma.db import models
@@ -60,6 +61,12 @@ def list_loans(db: Session = Depends(get_db)) -> list[models.BotLoan]:
 @router.get("/reserves", response_model=list[ReserveSummary])
 def list_reserves(db: Session = Depends(get_db)) -> list[models.Reserve]:
     stmt = select(models.Reserve).order_by(models.Reserve.updated_at.desc())
+    return list(db.execute(stmt).scalars())
+
+
+@router.get("/wallets", response_model=list[WalletSummary])
+def list_wallets(db: Session = Depends(get_db)) -> list[models.Wallet]:
+    stmt = select(models.Wallet).order_by(models.Wallet.created_at.asc())
     return list(db.execute(stmt).scalars())
 
 
