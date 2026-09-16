@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Broker Sakuma — Configurações</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <header>
+    <h1>Configurações</h1>
+  </header>
+  <main>
+    <form id="settings-form">
+      <label for="base-url">Endereço da API Local</label>
+      <input id="base-url" type="text" placeholder="http://127.0.0.1:8765" />
+
+      <label for="api-key">Chave da API</label>
+      <input id="api-key" type="password" placeholder="Cole sua chave aqui" autocomplete="off" />
+      <p class="hint">
+        Esta é a mesma chave configurada no backend (BROKER_SAKUMA_LOCAL_API__API_KEY).
+        Nunca cole aqui uma frase de recuperação ou chave privada de carteira —
+        esta extensão nunca lida com isso.
+      </p>
+
+      <button type="submit">Salvar</button>
+      <span id="save-status"></span>
+    </form>
+  </main>
+  <script type="module" src="dist/options.js"></script>
+</body>
+</html>

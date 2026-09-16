@@ -411,22 +411,60 @@ setup wizard is macOS GUI, not built yet).
   (this repo doesn't have one, and shouldn't invent a fake one to "prove"
   it works end-to-end).
 
+## Phase 14 — Safari Web Extension
+
+**Completed.** Unlike the macOS app, this is plain TypeScript + the
+WebExtensions API, so it was written *and* built *and* tested for real
+directly in this Linux container — no CI detour needed for that part
+(Xcode is only needed for the final native-wrapper conversion step).
+- Files: `extension/{manifest.json,package.json,tsconfig.json,popup.html,
+  options.html,popup.css}`, `extension/src/{types,apiClient,popup,
+  options,background,browser-globals.d}.ts`,
+  `extension/tests/structural.test.js`.
+- Features: read-only popup (system status, capital, reserve, daily/total
+  P&L, active/dead bots) and an options page for the Local API base URL
+  and API key. `apiClient.ts` is the **only** module that calls `fetch()`
+  — enforced by a test that scans every other source file. `manifest.json`'s
+  `host_permissions` are locked to `127.0.0.1:8765`/`localhost:8765`
+  only — no `<all_urls>`, no blockchain RPC host, nothing broader — so the
+  extension is structurally incapable of reaching a Solana RPC or any
+  other endpoint even if compromised. `permissions` is exactly
+  `["storage"]`. The options page explicitly warns the user never to
+  paste a recovery phrase or private key there (the Local API key it
+  actually takes is a different, much lower-stakes credential, and the
+  copy says so).
+- **Verified for real**: `npm run build` (`tsc`) compiles clean, and
+  `npm test` runs `tsc --noEmit` plus structural checks — no blockchain
+  SDK import (`@solana/web3.js`, `ethers`, etc.) anywhere in `src/`, no
+  reference to private-key/seed-phrase/mnemonic storage anywhere in
+  `src/`, `manifest_version: 3`. All 6 checks pass. Also wired into
+  `.github/workflows/extension-build.yml` (Node 22 on `ubuntu-latest` —
+  no macOS needed for this half) so it's re-verified on every push
+  touching `extension/`.
+- Known limitations: no native Safari wrapper exists yet — that's
+  `xcrun safari-web-extension-converter`, a Mac-only step documented in
+  `extension/README.md`; "Abrir Dashboard" currently opens the Local
+  API's auto-generated `/docs` page rather than a real dashboard UI or
+  the native app (no URL scheme registered for that yet).
+
 ## Cumulative test count: 164 Python (`pytest -q` in `backend/`) + 7 Swift
-(`swift test --package-path macapp`, verified via CI, not run locally).
+(verified via CI) + 6 TypeScript/structural (`npm test` in `extension/`,
+run directly in this environment, not just CI).
 
 ## Next phases (not yet built)
 
-14 (Safari extension), 15 (macOS *packaging* — .app bundle + .dmg +
-notarization — still requires a Mac; CI here only proves the Swift code
-builds, it does not assemble or sign a distributable app), 16 (security
-hardening pass), 17 (full integration testing), plus the Wallet Manager
-GUI, Keychain-backed Signer, and Telegram setup wizard on the SwiftUI
-side, and wiring TelegramControlService to an actual running bot
-(webhook/polling loop). The SwiftUI app can now be pointed at a real,
-running Local API (see the root README's "Running the Local API"
-section) — that wiring (actually running both together end-to-end on a
-Mac) still needs to be verified there, since this container can't run the
-macOS app itself.
+15 (macOS *packaging* — .app bundle + .dmg + notarization — still
+requires a Mac; CI here only proves the Swift code builds, it does not
+assemble or sign a distributable app), 16 (security hardening pass), 17
+(full integration testing), plus the Wallet Manager GUI, Keychain-backed
+Signer, and Telegram setup wizard on the SwiftUI side, the native Safari
+extension wrapper (also Mac-only), and wiring TelegramControlService to
+an actual running bot (webhook/polling loop). The SwiftUI app and the
+Safari extension can now both be pointed at a real, running Local API
+(see the root README's "Running the Local API" section) — that wiring
+(actually running everything together end-to-end on a Mac) still needs to
+be verified there, since this container can't run the macOS app or a real
+Safari session.
 
 ## macOS app — what the user needs to do on their own Mac
 

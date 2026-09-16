@@ -1,0 +1,36 @@
+name: Safari extension build
+
+on:
+  push:
+    branches:
+      - "**"
+    paths:
+      - "extension/**"
+      - ".github/workflows/extension-build.yml"
+  pull_request:
+    paths:
+      - "extension/**"
+      - ".github/workflows/extension-build.yml"
+  workflow_dispatch: {}
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: extension
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build
+        run: npm run build
+
+      - name: Test (typecheck + structural checks)
+        run: npm test

@@ -37,3 +37,4 @@ build/
 
 # Node (Safari extension / TS tooling)
 node_modules/
+extension/dist/

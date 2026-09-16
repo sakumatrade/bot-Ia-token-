@@ -1,0 +1,77 @@
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  width: 280px;
+  margin: 0;
+  padding: 12px;
+  color: #1c1c1e;
+}
+
+header h1 {
+  font-size: 15px;
+  margin: 0 0 8px 0;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+button {
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: none;
+  background: #0a84ff;
+  color: white;
+  cursor: pointer;
+}
+
+button.secondary {
+  background: #e5e5ea;
+  color: #1c1c1e;
+}
+
+.status-line {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 8px;
+  font-size: 13px;
+  margin: 0;
+}
+
+.metrics dt {
+  color: #6e6e73;
+}
+
+.metrics dd {
+  margin: 0;
+  text-align: right;
+}
+
+.error {
+  color: #ff3b30;
+  font-size: 13px;
+}
+
+.hint {
+  color: #6e6e73;
+  font-size: 12px;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+form input {
+  padding: 6px;
+  border-radius: 6px;
+  border: 1px solid #d1d1d6;
+}
