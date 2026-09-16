@@ -51,3 +51,18 @@ curl -H "X-API-Key: choose-a-long-random-secret" http://127.0.0.1:8765/api/dashb
 ```
 
 The macOS app's `APIClient` defaults to `http://127.0.0.1:8765`.
+
+## Building the macOS app (on a Mac)
+
+```
+scripts/build_mac.sh      # swift build -c release + assembles Broker Sakuma.app
+scripts/package_dmg.sh    # packages it into BrokerSakuma.dmg (drag-to-Applications)
+scripts/notarize.sh       # signs + notarizes, for distribution beyond this Mac
+                           # (needs a paid Apple Developer account — see the
+                           # script's header comment for required env vars)
+```
+
+These need a real Mac with Xcode/Swift installed; this repository's Linux
+CI only proves `swift build`/`swift test` succeed
+(`.github/workflows/macos-build.yml`), not that these scripts work — they
+haven't been run for real yet. See `docs/PHASES.md`.

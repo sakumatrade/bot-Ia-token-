@@ -451,20 +451,57 @@ directly in this Linux container — no CI detour needed for that part
 (verified via CI) + 6 TypeScript/structural (`npm test` in `extension/`,
 run directly in this environment, not just CI).
 
+## Phase 15 — macOS packaging scripts
+
+**Written, but genuinely unverified — this is the honest state, not a
+formality.** This Linux container has no `swift`, `codesign`, `hdiutil`,
+or `xcrun`, so none of this could be executed here, only reviewed.
+- Files: `scripts/{build_mac.sh,package_dmg.sh,notarize.sh}`,
+  `macapp/Resources/Info.plist`.
+- `build_mac.sh`: `swift build -c release` then hand-assembles
+  `Broker Sakuma.app` (Contents/MacOS + Contents/Resources +
+  Contents/Info.plist) — this project is a Swift Package rather than an
+  `.xcodeproj`, so there's no Xcode target doing this assembly
+  automatically; the script does what Xcode's build phases would.
+- `package_dmg.sh`: stages the `.app` plus an `/Applications` symlink and
+  calls `hdiutil create` for the standard drag-to-Applications DMG (spec
+  section 49).
+- `notarize.sh`: `codesign` the app and DMG with a **Developer ID
+  Application** certificate, `xcrun notarytool submit --wait`, then
+  `xcrun stapler staple`. All four required values (certificate identity,
+  Apple ID, team ID, app-specific password) are read from environment
+  variables the script `: "${VAR:?...}"`-guards — it refuses to run with
+  any of them unset rather than silently skipping a step, and none of
+  them are hardcoded or committed anywhere.
+- `Info.plist`: includes a narrow `NSAppTransportSecurity` exception for
+  exactly `127.0.0.1`/`localhost` (not a blanket
+  `NSAllowsArbitraryLoads`), since the app talks to the Local API over
+  plain HTTP on the loopback interface only, never the public internet.
+  **Validated for real** — not just written — by parsing it with Python's
+  `plistlib` in this container to confirm it's well-formed XML the way a
+  macOS `Info.plist` needs to be; that's the extent of what's checkable
+  without an actual Mac.
+- Known limitations / what's still genuinely untested: whether
+  `swift build -c release` on a real Mac produces exactly the binary path
+  these scripts assume; whether the assembled `.app` actually launches
+  (icon is a placeholder — no `AppIcon.icns` exists yet); the entire
+  `notarize.sh` flow end-to-end (needs a real paid Apple Developer
+  account this project doesn't have). Someone with a Mac needs to run
+  `scripts/build_mac.sh` and open the result before this phase can be
+  called done rather than "written."
+
 ## Next phases (not yet built)
 
-15 (macOS *packaging* — .app bundle + .dmg + notarization — still
-requires a Mac; CI here only proves the Swift code builds, it does not
-assemble or sign a distributable app), 16 (security hardening pass), 17
-(full integration testing), plus the Wallet Manager GUI, Keychain-backed
-Signer, and Telegram setup wizard on the SwiftUI side, the native Safari
-extension wrapper (also Mac-only), and wiring TelegramControlService to
-an actual running bot (webhook/polling loop). The SwiftUI app and the
-Safari extension can now both be pointed at a real, running Local API
-(see the root README's "Running the Local API" section) — that wiring
-(actually running everything together end-to-end on a Mac) still needs to
-be verified there, since this container can't run the macOS app or a real
-Safari session.
+16 (security hardening pass), 17 (full integration testing), plus the
+Wallet Manager GUI, Keychain-backed Signer, and Telegram setup wizard on
+the SwiftUI side, the native Safari extension wrapper (Mac-only), wiring
+TelegramControlService to an actual running bot (webhook/polling loop),
+and actually running the Phase 15 packaging scripts on a Mac. The SwiftUI
+app and the Safari extension can now both be pointed at a real, running
+Local API (see the root README's "Running the Local API" section) — that
+wiring (actually running everything together end-to-end on a Mac) still
+needs to be verified there, since this container can't run the macOS app
+or a real Safari session.
 
 ## macOS app — what the user needs to do on their own Mac
 
