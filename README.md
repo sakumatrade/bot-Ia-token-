@@ -32,3 +32,22 @@ pytest -q
 Defaults are conservative: `environment=simulation`,
 `trading.live_trading_enabled=false`. Nothing in this codebase can move real
 funds; see `docs/ARCHITECTURE.md#security` for why.
+
+## Running the Local API
+
+The Local API (spec section 38) requires an explicit API key — with none
+configured, every request is rejected (401) rather than running open.
+
+```
+cd backend
+export BROKER_SAKUMA_LOCAL_API__API_KEY="choose-a-long-random-secret"
+uvicorn broker_sakuma.api.app:create_app --factory --port 8765
+```
+
+Then, e.g.:
+
+```
+curl -H "X-API-Key: choose-a-long-random-secret" http://127.0.0.1:8765/api/dashboard
+```
+
+The macOS app's `APIClient` defaults to `http://127.0.0.1:8765`.

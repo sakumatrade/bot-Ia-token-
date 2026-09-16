@@ -224,7 +224,46 @@ wallet manager UI, Telegram UI, Safari extension still pending.**
   correctly shows a "disconnected" beginner-friendly state rather than
   fabricating dashboard numbers while the API is missing.
 
-## Cumulative test count: 87 Python (`pytest -q` in `backend/`) + 7 Swift
+## FastAPI Local API (spec section 38)
+
+**Completed** (the GET/POST surface the spec lists; not yet: rate limiting,
+per-caller identity beyond a shared key, or the sensitive-transfer
+endpoints, since transfers aren't built yet either).
+- Files: `backend/src/broker_sakuma/api/{app,deps,schemas}.py`,
+  `backend/src/broker_sakuma/api/routes/{dashboard,system,bots,misc}.py`,
+  `backend/src/broker_sakuma/services/{dashboard_service,
+  system_control_service}.py`.
+- Features: every route requires `X-API-Key`, checked with
+  `secrets.compare_digest`; an unconfigured key rejects all requests
+  rather than running the API open. `CORSMiddleware` restricts browser
+  origins (relevant to a future Safari extension; the native macOS app
+  isn't a browser and isn't affected). No cookie-based auth is used, so
+  classic CSRF doesn't apply here — documented as a deliberate choice, not
+  an omission. `/api/dashboard` and the list endpoints are backed by
+  `dashboard_service.build_dashboard_snapshot()`, which aggregates real
+  rows (capital, P&L, bot counts, thesis funnel, trade success rate,
+  drawdown, unacknowledged alerts) — an empty system legitimately reports
+  zeros, never fabricated numbers. `/api/system/{start,pause,resume}` go
+  through `SystemControlService`, which refuses to move to ONLINE/PAUSED
+  out of EMERGENCY_STOP or SAFE_HALT (409 Conflict) — a generic resume can
+  never be what clears a kill switch or safe halt, matching spec section
+  29. `/api/system/kill-switch` requires a non-empty `reason` in the body
+  (the "operações sensíveis exigem autorização adicional" requirement),
+  is reachable from any state, and is idempotent if already engaged.
+- Tests: `test_dashboard_service.py`, `test_system_control_service.py`,
+  `test_api.py` (full HTTP round-trip via FastAPI's `TestClient`) — 25
+  tests. **Also manually smoke-tested for real**: started the server with
+  `uvicorn`, hit it with `curl` — confirmed 401 without a key, a real
+  `/api/dashboard` response, and a real kill-switch engagement, not just
+  mocked/unit-tested behavior.
+- Known limitations: single shared-secret auth (no per-Telegram-user or
+  per-operator identity yet — `actor` is always recorded as `"local_api"`);
+  no endpoint yet to clear EMERGENCY_STOP/SAFE_HALT (intentionally not
+  built until there's a properly authorized flow for it); no rate
+  limiting; `/api/trades` only returns paper trades (no live `trades` yet,
+  since there's no live executor).
+
+## Cumulative test count: 112 Python (`pytest -q` in `backend/`) + 7 Swift
 (`swift test --package-path macapp`, verified via CI, not run locally).
 
 ## Next phases (not yet built)
@@ -234,8 +273,11 @@ manager + Keychain signer), 13 (Telegram), 14 (Safari extension), 15
 (macOS *packaging* — .app bundle + .dmg + notarization — still requires a
 Mac; CI here only proves the Swift code builds, it does not assemble or
 sign a distributable app), 16 (security hardening pass), 17 (full
-integration testing), plus the FastAPI Local API (section 38) that the
-SwiftUI app is written to call but doesn't exist yet.
+integration testing). The SwiftUI app can now be pointed at a real,
+running Local API (see the root README's "Running the Local API"
+section) — that wiring (actually running both together end-to-end on a
+Mac) still needs to be verified there, since this container can't run the
+macOS app itself.
 
 ## macOS app — what the user needs to do on their own Mac
 

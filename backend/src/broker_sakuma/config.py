@@ -108,6 +108,18 @@ class TradingConfig(BaseModel):
     live_trading_enabled: bool = False
 
 
+class LocalAPIConfig(BaseModel):
+    """Local API (spec section 38). No default API key is baked in: an
+    unset key means the dependency rejects every request rather than
+    silently running an unauthenticated local API.
+    """
+
+    api_key: str | None = None
+    allowed_origins: list[str] = Field(
+        default_factory=lambda: ["http://127.0.0.1", "http://localhost"]
+    )
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="BROKER_SAKUMA_",
@@ -127,6 +139,7 @@ class Settings(BaseSettings):
     growth: GrowthPolicyConfig = Field(default_factory=GrowthPolicyConfig)
     telegram: TelegramConfig = Field(default_factory=TelegramConfig)
     trading: TradingConfig = Field(default_factory=TradingConfig)
+    local_api: LocalAPIConfig = Field(default_factory=LocalAPIConfig)
 
 
 def get_settings() -> Settings:
