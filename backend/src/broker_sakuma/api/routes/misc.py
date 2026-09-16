@@ -10,6 +10,7 @@ from broker_sakuma.api.schemas import (
     GrowthResponse,
     OpportunitySummary,
     PaperTradeSummary,
+    ProtocolSummary,
     ReserveSummary,
     ResearchReportSummary,
     AlertSummary,
@@ -49,6 +50,21 @@ def list_alerts(db: Session = Depends(get_db)) -> list[models.Alert]:
 @router.get("/research", response_model=list[ResearchReportSummary])
 def list_research(db: Session = Depends(get_db)) -> list[models.ResearchReport]:
     stmt = select(models.ResearchReport).order_by(models.ResearchReport.created_at.desc())
+    return list(db.execute(stmt).scalars())
+
+
+@router.get("/protocols", response_model=list[ProtocolSummary])
+def list_protocols(db: Session = Depends(get_db)) -> list[models.Protocol]:
+    """Research Lab board (spec section 25): every protocol
+    ``ProtocolDiscoveryAgent`` has registered, grouped implicitly by
+    ``status`` (RESEARCH_ONLY/PAPER_ELIGIBLE/REVIEW_REQUIRED/DISABLED) on
+    the client side. Found missing during Phase 17 integration testing:
+    ``/api/research`` only ever covers the still-unused ``research_reports``
+    table, not the ``protocols`` table ``CryptoResearchLab`` actually
+    operates on.
+    """
+
+    stmt = select(models.Protocol).order_by(models.Protocol.updated_at.desc())
     return list(db.execute(stmt).scalars())
 
 

@@ -65,6 +65,21 @@ class AlertSummary(BaseModel):
     created_at: datetime
 
 
+class ProtocolSummary(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    name: str
+    blockchain: str
+    category: str | None
+    status: str
+    risk_score: float | None
+    tvl_usd: float | None
+    volume_24h_usd: float | None
+    age_days: int | None
+    updated_at: datetime
+
+
 class OpportunitySummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

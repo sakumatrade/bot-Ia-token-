@@ -525,21 +525,70 @@ CI-enforced regression tests.
   Local API was considered and deliberately skipped as low-value for a
   loopback-only, API-key-gated service.
 
-## Cumulative test count: 168 Python (`pytest -q` in `backend/`) + 7 Swift
+## Phase 17 — Full integration testing
+
+**Completed**, and it earned its keep: it found and fixed a real gap
+rather than just re-confirming what the phase-by-phase unit tests already
+knew.
+- Files: `backend/tests/test_integration.py`,
+  `backend/src/broker_sakuma/api/routes/misc.py` (new `/api/protocols`
+  route), `backend/src/broker_sakuma/api/schemas.py` (new
+  `ProtocolSummary`).
+- **What it found**: `CryptoResearchLab` (Phase 10) operates on the
+  `protocols` table, but `/api/research` (Phase 38's Local API) only ever
+  read from the separate, still-unused `research_reports` table — there
+  was no way for the macOS app, the Safari extension, or a Telegram
+  `/research` command to ever see protocol research data. Fixed by adding
+  `GET /api/protocols`. This is exactly the class of bug isolated unit
+  tests structurally cannot catch (each side individually was "correct"
+  against its own assumptions) and cross-engine, through-the-API testing
+  exists to find.
+- Three scenarios, each spanning 5+ engines and verified through the real
+  FastAPI `TestClient` rather than direct DB assertions alone:
+  1. **Full bot lifecycle**: Mother → Son → $5 thesis → loan-funded
+     capital → real `PaperExecutor` trade (through the real `RiskEngine`)
+     → `MaximumLossPolicy` death → post-mortem → resurrection → the
+     resurrected bot's own thesis still starting at exactly $5 → daily
+     settlement → reserve growth → loan repayment — with `/api/dashboard`,
+     `/api/bots`, `/api/trades`, `/api/reserves`, and `/api/loans` all
+     checked against the state the engines actually produced.
+  2. **Discovery → Research Lab**: `PumpFunMonitor` (via
+     `MockPumpFunProvider`) registers an opportunity, `ProtocolDiscoveryAgent`
+     registers and promotes a protocol to `PAPER_ELIGIBLE` — both
+     confirmed via `/api/opportunities` and the new `/api/protocols`.
+  3. **Cross-surface kill switch consistency**: a kill switch engaged
+     through `TelegramControlService` is immediately visible in
+     `/api/status`, blocks `/api/system/resume` (409), and is enforced by
+     a completely separate `PaperExecutor` instance — proving Telegram,
+     the Local API, and the trading engine all read the exact same
+     `SystemState`, not independent copies of it.
+- Tests: `test_integration.py` — 3 tests (each substantial: the full
+  lifecycle test alone exercises 9 engines/services in sequence).
+  171 tests passing overall.
+- Known limitations: still no test drives the macOS app or Safari
+  extension against a live backend (needs an actual Mac/Safari session,
+  as documented throughout); PumpFunMonitor and ProtocolDiscoveryAgent
+  integration still uses caller-supplied evidence, since no real external
+  data source exists yet (Phase 11's own documented limitation, unchanged
+  here).
+
+## Cumulative test count: 171 Python (`pytest -q` in `backend/`) + 7 Swift
 (verified via CI) + 6 TypeScript/structural (`npm test` in `extension/`).
 
-## Next phases (not yet built)
+## Status: all 17 phases from the original plan have a first pass built.
 
-17 (full integration testing), plus the Wallet Manager GUI, Keychain-
-backed Signer, and Telegram setup wizard on the SwiftUI side, the native
-Safari extension wrapper (Mac-only), wiring TelegramControlService to an
-actual running bot (webhook/polling loop), and actually running the Phase
-15 packaging scripts on a Mac. The SwiftUI app and the Safari extension
-can now both be pointed at a real, running Local API (see the root
-README's "Running the Local API" section) — that wiring (actually running
-everything together end-to-end on a Mac) still needs to be verified
-there, since this container can't run the macOS app or a real Safari
-session.
+What's left is exclusively the work that genuinely requires a Mac (the
+Wallet Manager GUI, Keychain-backed Signer, Telegram setup wizard, and
+native Safari extension wrapper on the SwiftUI side; running
+`scripts/build_mac.sh`/`package_dmg.sh`/`notarize.sh` for real; running
+the macOS app and Safari extension against a live backend end-to-end) and
+integrations that don't exist yet to build against honestly (a real
+Pump.fun data source, a real Telegram bot token, a real Solana RPC/signer
+for eventual live trading — still structurally disabled throughout). None
+of that can be simulated here without violating the spec's own "never
+fake a working integration" rule, so it stays documented as exactly that:
+not done, not fakeable, waiting on a Mac and on real external
+credentials/APIs that don't belong in this repository.
 
 ## macOS app — what the user needs to do on their own Mac
 
