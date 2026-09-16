@@ -1,0 +1,39 @@
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.sqlite3
+.coverage
+htmlcov/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# macOS
+.DS_Store
+
+# Xcode
+macapp/**/xcuserdata/
+macapp/**/*.xcuserstate
+macapp/build/
+macapp/DerivedData/
+
+# Build artifacts
+dist/
+build/
+*.dmg
+*.app
+
+# Node (Safari extension / TS tooling)
+node_modules/
