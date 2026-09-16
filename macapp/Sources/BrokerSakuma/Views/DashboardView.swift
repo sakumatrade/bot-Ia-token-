@@ -3,6 +3,7 @@ import SwiftUI
 
 struct DashboardView: View {
     @EnvironmentObject private var appState: AppState
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         ScrollView {
@@ -41,6 +42,12 @@ struct DashboardView: View {
             }
             .pickerStyle(.segmented)
             .frame(width: 200)
+            Button {
+                openWindow(id: "settings")
+            } label: {
+                Image(systemName: "gearshape")
+            }
+            .help("Configurações")
         }
     }
 

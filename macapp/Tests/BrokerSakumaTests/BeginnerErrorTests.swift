@@ -15,8 +15,15 @@ final class BeginnerErrorTests: XCTestCase {
     }
 
     func testEachAPIErrorCaseHasADistinctHeadline() {
-        let errors: [APIError] = [.notConnected, .serverError(statusCode: 500), .decodingFailed, .unauthorized]
+        let errors: [APIError] = [
+            .notConnected, .serverError(statusCode: 500), .decodingFailed, .unauthorized, .missingAPIKey,
+        ]
         let headlines = Set(errors.map { BeginnerMessage.present($0).headline })
         XCTAssertEqual(headlines.count, errors.count, "each error case should have its own explanation")
+    }
+
+    func testMissingAPIKeyPointsToSettings() {
+        let presentation = BeginnerMessage.present(APIError.missingAPIKey)
+        XCTAssertTrue(presentation.headline.contains("Configurações"))
     }
 }

@@ -25,8 +25,8 @@ actor APIClient {
         self.session = URLSession(configuration: configuration)
     }
 
-    func fetchDashboard() async throws -> DashboardSummary {
-        let data = try await get(path: "api/dashboard")
+    func fetchDashboard(apiKey: String) async throws -> DashboardSummary {
+        let data = try await get(path: "api/dashboard", apiKey: apiKey)
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         do {
@@ -36,19 +36,21 @@ actor APIClient {
         }
     }
 
-    func sendSystemAction(_ action: SystemAction) async throws {
-        _ = try await post(path: "api/system/\(action.rawValue)")
+    func sendSystemAction(_ action: SystemAction, apiKey: String) async throws {
+        _ = try await post(path: "api/system/\(action.rawValue)", apiKey: apiKey)
     }
 
-    private func get(path: String) async throws -> Data {
+    private func get(path: String, apiKey: String) async throws -> Data {
         var request = URLRequest(url: baseURL.appendingPathComponent(path))
         request.httpMethod = "GET"
+        request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
         return try await perform(request)
     }
 
-    private func post(path: String) async throws -> Data {
+    private func post(path: String, apiKey: String) async throws -> Data {
         var request = URLRequest(url: baseURL.appendingPathComponent(path))
         request.httpMethod = "POST"
+        request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
         return try await perform(request)
     }
 

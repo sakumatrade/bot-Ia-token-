@@ -32,6 +32,10 @@ struct MenuBarContentView: View {
                 openWindow(id: "dashboard")
             }
 
+            Button("Configurações") {
+                openWindow(id: "settings")
+            }
+
             Button("Pausar") {
                 Task { await appState.sendSystemAction(.pause) }
             }

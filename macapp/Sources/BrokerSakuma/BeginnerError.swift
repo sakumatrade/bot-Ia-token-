@@ -9,6 +9,7 @@ enum APIError: Error, Equatable {
     case serverError(statusCode: Int)
     case decodingFailed
     case unauthorized
+    case missingAPIKey
 }
 
 /// Spec section 43: never show "HTTP 500" by default. Show a plain
@@ -39,8 +40,13 @@ enum BeginnerMessage {
             )
         case APIError.unauthorized:
             return Presentation(
-                headline: "O Broker Sakuma não tem permissão para fazer essa ação agora.",
-                technicalDetails: "unauthorized: autenticação da API local rejeitada."
+                headline: "A chave da API configurada está incorreta. Confira em Configurações.",
+                technicalDetails: "unauthorized: autenticação da API local rejeitada (HTTP 401/403)."
+            )
+        case APIError.missingAPIKey:
+            return Presentation(
+                headline: "Configure a chave da API em Configurações antes de continuar.",
+                technicalDetails: "missingAPIKey: nenhuma chave foi definida ainda."
             )
         default:
             return Presentation(

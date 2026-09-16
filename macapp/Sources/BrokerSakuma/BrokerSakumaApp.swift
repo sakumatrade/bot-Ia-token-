@@ -11,6 +11,12 @@ struct BrokerSakumaApp: App {
         }
         .windowResizability(.contentSize)
 
+        WindowGroup("Configurações", id: "settings") {
+            SettingsView()
+                .environmentObject(appState)
+        }
+        .windowResizability(.contentSize)
+
         MenuBarExtra("Broker Sakuma", systemImage: "chart.line.uptrend.xyaxis") {
             MenuBarContentView()
                 .environmentObject(appState)

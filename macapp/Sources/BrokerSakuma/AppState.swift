@@ -12,10 +12,17 @@ enum DisplayMode: String, CaseIterable, Identifiable {
 
 @MainActor
 final class AppState: ObservableObject {
+    static let apiKeyDefaultsKey = "brokerSakuma.apiKey"
+
     @Published private(set) var dashboard: DashboardSummary?
     @Published private(set) var lastError: Error?
     @Published private(set) var isLoading = false
     @Published var displayMode: DisplayMode = .simple
+    @Published var apiKey: String {
+        didSet {
+            UserDefaults.standard.set(apiKey, forKey: Self.apiKeyDefaultsKey)
+        }
+    }
 
     private let apiClient: APIClient
     private var pollTask: Task<Void, Never>?
@@ -24,6 +31,7 @@ final class AppState: ObservableObject {
     init(apiClient: APIClient = APIClient(), pollIntervalSeconds: UInt64 = 5) {
         self.apiClient = apiClient
         self.pollIntervalNanoseconds = pollIntervalSeconds * 1_000_000_000
+        self.apiKey = UserDefaults.standard.string(forKey: Self.apiKeyDefaultsKey) ?? ""
     }
 
     var isConnected: Bool { dashboard != nil }
@@ -45,10 +53,16 @@ final class AppState: ObservableObject {
     }
 
     func refresh() async {
+        guard !apiKey.isEmpty else {
+            dashboard = nil
+            lastError = APIError.missingAPIKey
+            return
+        }
+
         isLoading = true
         defer { isLoading = false }
         do {
-            dashboard = try await apiClient.fetchDashboard()
+            dashboard = try await apiClient.fetchDashboard(apiKey: apiKey)
             lastError = nil
         } catch {
             // A failed refresh never keeps stale data around pretending
@@ -59,8 +73,12 @@ final class AppState: ObservableObject {
     }
 
     func sendSystemAction(_ action: SystemAction) async {
+        guard !apiKey.isEmpty else {
+            lastError = APIError.missingAPIKey
+            return
+        }
         do {
-            try await apiClient.sendSystemAction(action)
+            try await apiClient.sendSystemAction(action, apiKey: apiKey)
             lastError = nil
             await refresh()
         } catch {
