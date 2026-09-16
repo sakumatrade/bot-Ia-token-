@@ -173,22 +173,75 @@ app cannot be compiled/packaged here (needs a real Mac + Xcode).
   TEST-split evidence before promotion) but not fully prevented by code
   alone; that still needs human review at the REVIEW state.
 
-## Cumulative test count: 80 passing (`pytest -q` in `backend/`).
+## Phase 9 — BotCommunicationEngine + BotCouncil
+
+**Completed.**
+- Files: `backend/src/broker_sakuma/engines/bot_communication.py`.
+- Features: `BotCommunicationEngine.broadcast()` shares classified intel
+  between bots (reuses the `LearningEvent` table rather than adding a
+  parallel one — it already has the right shape); `verified_ground_truth()`
+  returns only FACT/DATA/REAL_RESULT, deliberately excluding HYPOTHESIS,
+  SIMULATION and AGENT_OPINION. `BotCouncil.convene()` tallies multiple
+  bots' opinions into a majority verdict — but that verdict is always
+  recorded back as `AGENT_OPINION`, never `FACT`, no matter how many bots
+  agreed (spec section 9's core rule, tested explicitly).
+- Tests: `test_bot_communication.py` — 7 tests. 87 tests passing overall.
+
+## Phase 2/15 (partial) — macOS SwiftUI app, built and verified in the cloud
+
+**Completed for what's in scope so far (dashboard + menu bar shell); wizard,
+wallet manager UI, Telegram UI, Safari extension still pending.**
+- This container is Linux and cannot run Xcode. There is also no "Xcode
+  online" product from Apple — the practical equivalent used here is
+  **GitHub Actions' `macos-14` runners**, which ship a real Xcode/Swift
+  toolchain. `.github/workflows/macos-build.yml` builds (debug + release)
+  and tests the app on every push touching `macapp/`.
+- The app is a **Swift Package** (`macapp/Package.swift`), not a
+  hand-written `.xcodeproj` — a hand-crafted `project.pbxproj` is fragile
+  without Xcode itself to generate it, whereas `swift build`/`swift test`
+  and Xcode's own "open Package.swift" both work directly against this
+  layout on a real Mac.
+- Files: `BrokerSakumaApp.swift` (menu bar + dashboard window scenes),
+  `AppState.swift` (polling, never keeps stale data on a failed refresh),
+  `APIClient.swift` (talks to the future Local API, never fabricates a
+  response), `DashboardModels.swift`, `BeginnerError.swift` (spec section
+  43: plain-language headline, technical detail behind a toggle, never a
+  raw HTTP code), `Views/DashboardView.swift` (Simple/Advanced mode,
+  metrics grid), `Views/MenuBarContentView.swift` (Pause/Resume/Emergency
+  Stop with a confirmation dialog on the destructive action, per spec
+  section 40).
+- **Verified green for real**, not just "should compile": run
+  https://github.com/sakumatrade/bot-Ia-token-/actions/runs/35139777485 —
+  debug build, 7 Swift unit tests (all passing), and a release build all
+  succeeded on GitHub's actual Apple toolchain. The release binary is
+  downloadable from that run's artifacts
+  (`broker-sakuma-macos-binary`) — but it only runs on macOS; there is no
+  Windows target because SwiftUI/AppKit are Apple-only.
+- Known limitations: the app has no real data to show yet (the Local API
+  it talks to doesn't exist — Phase not started), no setup wizard (section
+  41), no Wallet Manager UI, no Telegram UI, no manual/help content
+  (section 42), no menu items beyond Pause/Resume/Emergency Stop/Quit. It
+  correctly shows a "disconnected" beginner-friendly state rather than
+  fabricating dashboard numbers while the API is missing.
+
+## Cumulative test count: 87 Python (`pytest -q` in `backend/`) + 7 Swift
+(`swift test --package-path macapp`, verified via CI, not run locally).
 
 ## Next phases (not yet built)
 
-9 (bot communication + BotCouncil), 10 (research lab/protocol discovery),
-11 (Pump.fun adapter), 12 (wallet manager + Keychain signer), 13
-(Telegram), 14 (Safari extension), 15 (macOS packaging — requires a Mac,
-see below), 16 (security hardening pass), 17 (full integration testing),
-plus the FastAPI Local API (section 38) and the SwiftUI dashboard/menu-bar
-app (sections 5, 6, 40) that will actually call into everything built so
-far.
+10 (research lab/protocol discovery), 11 (Pump.fun adapter), 12 (wallet
+manager + Keychain signer), 13 (Telegram), 14 (Safari extension), 15
+(macOS *packaging* — .app bundle + .dmg + notarization — still requires a
+Mac; CI here only proves the Swift code builds, it does not assemble or
+sign a distributable app), 16 (security hardening pass), 17 (full
+integration testing), plus the FastAPI Local API (section 38) that the
+SwiftUI app is written to call but doesn't exist yet.
 
-## macOS app — what the user needs to do, once it exists
+## macOS app — what the user needs to do on their own Mac
 
-This container cannot compile or run Swift. When the SwiftUI project
-(`macapp/`) is written, opening and building it requires, on an actual Mac:
+Compiling in CI proves the code is correct; it does not give you a
+double-clickable `.app`. To actually run it locally or produce a signed
+`.dmg`, on an actual Mac:
 
 1. **Xcode** (Mac App Store, free) or at minimum the Command Line Tools
    (`xcode-select --install`).
@@ -201,5 +254,5 @@ This container cannot compile or run Swift. When the SwiftUI project
    `notarytool` — supplied to `scripts/notarize.sh` via environment
    variables/CI secrets, never committed to git.
 4. `git pull origin claude/broker-sakuma-macos-app-d17bns`, then
-   `open macapp/BrokerSakuma.xcodeproj` and build with ⌘B / run with ⌘R,
-   or drive it headlessly with `xcodebuild`.
+   `cd macapp && open Package.swift` (Xcode opens it as a Swift Package)
+   and run with ⌘R, or `swift run` from the terminal.
