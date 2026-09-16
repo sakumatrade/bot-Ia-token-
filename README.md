@@ -78,13 +78,28 @@ real transaction; see `docs/ARCHITECTURE.md#security` and
 
 ## Creating and activating a bot from the terminal
 
-With the Local API running (above), these three `curl` commands create the
-Mother Bot, spawn a Son under it, and "activate" that Son — funding it with
-the fixed **$5 simulated stake** (spec section 10's $5 rule) from the
-Mother Bot's own simulated treasury. Everything here is a plain number in
-this backend's own database; there is no wallet, private key, or
-blockchain call anywhere in this flow — see
-`docs/ARCHITECTURE.md#security` for why that's a structural guarantee.
+With the Local API running (above), the easiest option is one script that
+does everything: creates the Mother Bot if it doesn't exist yet, spawns a
+new Son, and activates it (funds it with the fixed **$5 simulated
+stake** — spec section 10's $5 rule). No IDs to copy/paste by hand.
+
+```bash
+./scripts/activate_bot.sh SUA_CHAVE_DE_API                     # nome do Son automático
+./scripts/activate_bot.sh SUA_CHAVE_DE_API "Son 001"           # nome escolhido
+./scripts/activate_bot.sh SUA_CHAVE_DE_API "Son 001" 1000      # + capital inicial da Mother (só usado na 1ª vez)
+```
+
+Run it again any time to spawn and activate another Son under the same
+Mother Bot. It's a thin wrapper over `curl` — see the script itself
+(`scripts/activate_bot.sh`) if you want to see exactly what it does.
+
+Everything here is a plain number in this backend's own database; there
+is no wallet, private key, or blockchain call anywhere in this flow —
+see `docs/ARCHITECTURE.md#security` for why that's a structural
+guarantee.
+
+Equivalent step-by-step, if you'd rather run the three `curl` commands
+yourself:
 
 ```bash
 API_KEY="choose-a-long-random-secret"   # same value you started uvicorn with
