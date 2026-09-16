@@ -107,7 +107,8 @@
   }
   ul.plain li:last-child { border-bottom: none; }
   .settings-row { display: flex; flex-direction: column; gap: 8px; }
-  .settings-row input {
+  .settings-row input,
+  .settings-row select {
     font: inherit;
     padding: 8px;
     border-radius: 8px;
@@ -158,6 +159,30 @@
   <div class="card">
     <strong>Alertas</strong>
     <ul class="plain" id="alerts-list"><li class="hint">Nenhum alerta.</li></ul>
+  </div>
+
+  <div class="card">
+    <strong>Carteiras (só visualização)</strong>
+    <p class="hint">
+      Cole aqui apenas o endereço público da sua carteira, para acompanhar o saldo.
+      Nunca cole uma frase de recuperação ou chave privada — esta página nunca pede
+      isso, e o sistema não tem como assinar ou mover fundos de verdade ainda.
+    </p>
+    <ul class="plain" id="wallets-list"><li class="hint">Nenhuma carteira cadastrada.</li></ul>
+    <form id="add-wallet-form" class="settings-row" style="margin-top: 10px;">
+      <input id="wallet-name" type="text" placeholder="Nome (ex: Minha Phantom)" required />
+      <input id="wallet-address" type="text" placeholder="Endereço público (nunca a chave privada)" required />
+      <select id="wallet-type">
+        <option value="RECEIVING_WALLET">Carteira de recebimento</option>
+        <option value="BOT_WALLET">Carteira de um bot</option>
+        <option value="MOTHER_WALLET">Carteira da Mother Bot</option>
+        <option value="RESERVE_WALLET">Carteira de reserva</option>
+      </select>
+      <div>
+        <button type="submit" class="primary">Adicionar carteira</button>
+        <span id="wallet-status" class="hint"></span>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -329,6 +354,54 @@
     }
   }
 
+  async function refreshWallets() {
+    const list = document.getElementById("wallets-list");
+    try {
+      const wallets = await api("/api/wallets");
+      if (!wallets.length) {
+        list.innerHTML = '<li class="hint">Nenhuma carteira cadastrada.</li>';
+        return;
+      }
+      list.innerHTML = wallets
+        .map(
+          (w) =>
+            "<li><span>" +
+            escapeHtml(w.name) +
+            " (" +
+            escapeHtml(w.wallet_type) +
+            ")</span><span>" +
+            escapeHtml(w.public_address.slice(0, 4) + "…" + w.public_address.slice(-4)) +
+            "</span></li>"
+        )
+        .join("");
+    } catch (err) {
+      list.innerHTML = '<li class="hint">' + escapeHtml(messageFor(err)) + "</li>";
+    }
+  }
+
+  function initAddWalletForm() {
+    document.getElementById("add-wallet-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const name = document.getElementById("wallet-name").value.trim();
+      const publicAddress = document.getElementById("wallet-address").value.trim();
+      const walletType = document.getElementById("wallet-type").value;
+      const status = document.getElementById("wallet-status");
+
+      try {
+        await api("/api/wallets", {
+          method: "POST",
+          body: JSON.stringify({ name, wallet_type: walletType, public_address: publicAddress }),
+        });
+        document.getElementById("add-wallet-form").reset();
+        status.textContent = "Carteira adicionada.";
+        setTimeout(() => (status.textContent = ""), 2000);
+        await refreshWallets();
+      } catch (err) {
+        status.textContent = messageFor(err);
+      }
+    });
+  }
+
   async function refresh() {
     try {
       const dashboard = await api("/api/dashboard");
@@ -338,6 +411,7 @@
     }
     await refreshBots();
     await refreshAlerts();
+    await refreshWallets();
   }
 
   function initSettingsForm() {
@@ -357,6 +431,7 @@
   }
 
   initSettingsForm();
+  initAddWalletForm();
   refresh();
   setInterval(refresh, 5000);
 })();

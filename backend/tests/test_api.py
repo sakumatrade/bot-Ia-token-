@@ -147,6 +147,58 @@ def test_dashboard_page_is_public_but_serves_no_data(client):
     assert root_response.headers["location"] == "/dashboard"
 
 
+def test_add_wallet_is_always_watch_only(client, auth_headers):
+    response = client.post(
+        "/api/wallets",
+        headers=auth_headers,
+        json={
+            "name": "Minha carteira Phantom",
+            "blockchain": "solana",
+            "wallet_type": "RECEIVING_WALLET",
+            "public_address": "3xampleSolanaPublicAddress1111111111111",
+            "purpose": "acompanhar saldo",
+        },
+    )
+    assert response.status_code == 201
+    body = response.json()
+    assert body["kind"] == "WATCH_ONLY"
+    assert body["public_address"] == "3xampleSolanaPublicAddress1111111111111"
+
+    listed = client.get("/api/wallets", headers=auth_headers).json()
+    assert any(w["id"] == body["id"] for w in listed)
+
+
+def test_add_wallet_rejects_invalid_wallet_type(client, auth_headers):
+    response = client.post(
+        "/api/wallets",
+        headers=auth_headers,
+        json={"name": "X", "wallet_type": "NOT_A_REAL_TYPE", "public_address": "Addr1"},
+    )
+    assert response.status_code == 422
+
+
+def test_add_wallet_rejects_duplicate_address(client, auth_headers):
+    payload = {
+        "name": "A",
+        "blockchain": "solana",
+        "wallet_type": "BOT_WALLET",
+        "public_address": "DupAddr1111111111111111111111111111111",
+    }
+    first = client.post("/api/wallets", headers=auth_headers, json=payload)
+    assert first.status_code == 201
+
+    second = client.post("/api/wallets", headers=auth_headers, json={**payload, "name": "B"})
+    assert second.status_code == 409
+
+
+def test_add_wallet_requires_api_key(client):
+    response = client.post(
+        "/api/wallets",
+        json={"name": "X", "wallet_type": "BOT_WALLET", "public_address": "Addr1"},
+    )
+    assert response.status_code == 401
+
+
 def test_growth_endpoint_reports_configured_limits(client, auth_headers):
     response = client.get("/api/growth", headers=auth_headers)
     assert response.status_code == 200

@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from broker_sakuma.api.deps import get_db, get_settings, require_api_key
 from broker_sakuma.api.schemas import (
+    AddWalletRequest,
     BotLoanSummary,
     GrowthResponse,
     OpportunitySummary,
@@ -18,7 +19,9 @@ from broker_sakuma.api.schemas import (
     WalletSummary,
 )
 from broker_sakuma.config import Settings
+from broker_sakuma.core.enums import WalletKind, WalletType
 from broker_sakuma.db import models
+from broker_sakuma.engines.wallet_manager import DuplicateWalletError, WalletManager
 
 router = APIRouter(tags=["misc"], dependencies=[Depends(require_api_key)])
 
@@ -84,6 +87,39 @@ def list_reserves(db: Session = Depends(get_db)) -> list[models.Reserve]:
 def list_wallets(db: Session = Depends(get_db)) -> list[models.Wallet]:
     stmt = select(models.Wallet).order_by(models.Wallet.created_at.asc())
     return list(db.execute(stmt).scalars())
+
+
+@router.post("/wallets", response_model=WalletSummary, status_code=status.HTTP_201_CREATED)
+def add_wallet(payload: AddWalletRequest, db: Session = Depends(get_db)) -> models.Wallet:
+    """Always registers the wallet as WATCH_ONLY — this backend has no
+    signer capable of anything else (spec section 33: no private key,
+    seed phrase, or mnemonic is ever accepted here, and there is no field
+    for one in ``AddWalletRequest``).
+    """
+
+    try:
+        wallet_type = WalletType(payload.wallet_type)
+    except ValueError as exc:
+        valid = ", ".join(t.value for t in WalletType)
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"invalid wallet_type {payload.wallet_type!r}; must be one of: {valid}",
+        ) from exc
+
+    manager = WalletManager(db)
+    try:
+        return manager.add_wallet(
+            name=payload.name,
+            blockchain=payload.blockchain,
+            wallet_type=wallet_type,
+            kind=WalletKind.WATCH_ONLY,
+            public_address=payload.public_address,
+            purpose=payload.purpose,
+        )
+    except DuplicateWalletError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
 
 
 @router.get("/growth", response_model=GrowthResponse)

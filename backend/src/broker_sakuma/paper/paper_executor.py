@@ -22,6 +22,7 @@ from broker_sakuma.db import models
 from broker_sakuma.engines.max_loss_policy import MaximumLossPolicy
 from broker_sakuma.engines.risk_engine import OrderRequest, RiskDecision, RiskEngine
 from broker_sakuma.engines.system_state import get_system_state
+from broker_sakuma.engines.telegram_notifications import ProfitNotifier
 
 
 @dataclass
@@ -50,10 +51,11 @@ class InsufficientPositionError(Exception):
 
 
 class PaperExecutor:
-    def __init__(self, session: Session, risk_config: RiskPolicyConfig):
+    def __init__(self, session: Session, risk_config: RiskPolicyConfig, notifier: ProfitNotifier | None = None):
         self.session = session
         self.risk_engine = RiskEngine(risk_config)
         self.max_loss_policy = MaximumLossPolicy()
+        self.notifier = notifier
 
     def _today_stats(self, bot_id: str) -> tuple[float, int, int]:
         """Return (loss_so_far_usd, trades_count, consecutive_losses) for today."""
@@ -207,5 +209,8 @@ class PaperExecutor:
             return PaperExecutionResult(approved=True, reason="duplicate_idempotency_key", trade=existing, duplicate=True)
 
         bot_died = self.max_loss_policy.enforce(self.session, bot, reason="max_loss_breached_during_paper_trading")
+
+        if self.notifier is not None:
+            self.notifier.notify_profit(bot, trade)
 
         return PaperExecutionResult(approved=True, reason="executed", trade=trade, bot_died=bot_died)

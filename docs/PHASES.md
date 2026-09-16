@@ -609,6 +609,73 @@ rather than a redesign.
   future setup wizard; it inherits the Local API's single-shared-key auth
   model, so treat that key with the same care as any admin credential.
 
+## Post-Phase-17 addition — macOS app API key bug fix
+
+**Real bug, found live by the user testing on their own Mac**: the
+SwiftUI app was written (Phase 2) before the Local API's authentication
+existed (added later, in the FastAPI phase), and nothing was ever added
+afterward to thread a key through — `APIClient` made every request with
+no `X-API-Key` header at all, so every single call 401'd, silently (the
+app just showed "disconnected" with no way to explain why).
+- Fixed: `APIClient.swift` now takes `apiKey` on every call;
+  `AppState.swift` gained a `@Published var apiKey` persisted to
+  `UserDefaults`; a new `.missingAPIKey` `APIError` case gives a specific,
+  actionable message ("Configure a chave da API em Configurações") instead
+  of a generic failure; a new `Views/SettingsView.swift` plus entry points
+  (gear icon on the dashboard, "Configurações" in the menu bar) let the
+  user actually enter the key.
+- Verified via the macOS CI build (green) before telling the user to pull
+  and rebuild — same discipline as every other Swift change in this repo.
+- This is the kind of gap that only surfaces when a real person runs the
+  real app against the real API end-to-end, which is exactly what
+  happened here.
+
+## Post-Phase-17 addition — watch-only wallet linking + Telegram profit notifications
+
+Requested directly by the user while testing. Built the parts that are
+safe and honest; explicitly declined the parts that aren't (see below).
+- **Watch-only wallets**: `POST /api/wallets` (schemas.py:
+  `AddWalletRequest`, routes/misc.py: `add_wallet`) always creates a
+  `WATCH_ONLY` wallet via the existing `WalletManager` — the request
+  schema has no field for a private key, seed phrase, or mnemonic, and
+  the handler hardcodes `kind=WalletKind.WATCH_ONLY` regardless of what's
+  posted, so there is no way to reach a signing-capable wallet through
+  this endpoint even by mistake. Also added a "Carteiras" card to the
+  browser dashboard (list + add-by-public-address form), and 4 new API
+  tests (duplicate rejection, invalid type rejection, auth requirement).
+- **Telegram profit notifications**: new
+  `engines/telegram_notifications.py`'s `ProfitNotifier`, built on the
+  already-existing `TelegramBotClient` (Phase 13) — sends a message via
+  the real Telegram Bot API only when a trade's realized P&L is actually
+  positive, and silently no-ops if Telegram isn't configured
+  (`enabled`/`bot_token`/`owner_user_id` all required) rather than
+  raising. Wired into `PaperExecutor` as an optional constructor
+  parameter (`notifier: ProfitNotifier | None = None`, defaulting to
+  `None` — fully backward compatible with every existing call site).
+  README documents the real setup path: create a bot via
+  **@BotFather**, get your numeric user ID via **@userinfobot**, set
+  three env vars.
+- **Explicitly declined in the same conversation**: the user then asked
+  for a way to *send real money to the bot* and *connect a wallet for
+  real fund movement, via blockchain APIs*. This was refused, directly
+  and with reasons given (spec sections 4/61's explicit "never enable
+  live trading automatically"; no real signer exists — see
+  `engines/signer.py`; irreversible real-money risk). Recorded here
+  because it's a meaningful product-boundary decision, not just a code
+  change: this system remains simulation-only, on purpose, and building
+  real fund transfer was not something to slip in as a quick follow-up
+  request mid-troubleshooting-session.
+- Tests: `test_telegram_notifications.py` (6 tests) + 4 new
+  `test_api.py` wallet tests. 182 tests passing overall.
+- Known limitations: nothing in the running Local API server currently
+  *executes* a paper trade (no `POST /api/trades` or similar exists —
+  trades only happen via direct engine calls today, e.g. in tests/
+  integration scenarios), so `ProfitNotifier` is fully built and tested
+  but has no live trigger point yet inside the actual running server;
+  wallet linking and Telegram notifications are not yet surfaced in the
+  native macOS app (only the browser dashboard), since that would need
+  another Xcode CI round-trip not yet done.
+
 ## Status: all 17 phases from the original plan have a first pass built.
 
 What's left is exclusively the work that genuinely requires a Mac (the

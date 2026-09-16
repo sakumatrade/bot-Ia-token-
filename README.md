@@ -67,6 +67,38 @@ actually asks for): the backend is plain Python and already runs
 anywhere, so this page works today without Xcode, a Mac, or any build
 step, while the native app remains the primary experience.
 
+## Watch-only wallets
+
+`POST /api/wallets` (also in the browser dashboard's "Carteiras" card) adds
+a wallet by its **public address only** — there is no field for a private
+key, seed phrase, or mnemonic anywhere in this system, and every wallet
+added this way is always `WATCH_ONLY`. Nothing here can sign or send a
+real transaction; see `docs/ARCHITECTURE.md#security` and
+`engines/signer.py` for why that's a structural guarantee, not a policy.
+
+## Telegram profit notifications
+
+To get a message whenever a bot's trade closes with a profit:
+
+1. Message **[@BotFather](https://t.me/BotFather)** on Telegram, send
+   `/newbot`, follow the prompts. You'll get a **bot token**
+   (looks like `123456789:ABCdefGhIJKlmNoPQRsTUVwxyz`).
+2. Message **[@userinfobot](https://t.me/userinfobot)** (or any similar
+   bot) to get your own **numeric Telegram user ID** — that's your
+   `owner_user_id`/chat ID for a direct message.
+3. Set these before starting the backend:
+   ```
+   export BROKER_SAKUMA_TELEGRAM__ENABLED=true
+   export BROKER_SAKUMA_TELEGRAM__BOT_TOKEN="123456789:ABCdefGhIJKlmNoPQRsTUVwxyz"
+   export BROKER_SAKUMA_TELEGRAM__OWNER_USER_ID="your-numeric-id"
+   ```
+4. Open a chat with your new bot and send it any message once (Telegram
+   requires the user to message a bot first before it can message back).
+
+Nothing here executes arbitrary commands or touches a wallet — it only
+ever sends a plain-text message when `engines/telegram_notifications.py`'s
+`ProfitNotifier` sees a trade with positive realized P&L.
+
 ## Building the macOS app (on a Mac)
 
 ```

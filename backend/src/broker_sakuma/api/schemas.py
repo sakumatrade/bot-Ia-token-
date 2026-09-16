@@ -161,6 +161,21 @@ class WalletSummary(BaseModel):
     is_active: bool
 
 
+class AddWalletRequest(BaseModel):
+    """Watch-only only: there is no field for a private key, seed phrase,
+    or mnemonic here, and the route handler enforces ``kind=WATCH_ONLY``
+    unconditionally — no real signer exists in this backend (see
+    ``engines/signer.py``), so nothing here could ever pretend to add a
+    signing-capable wallet.
+    """
+
+    name: str
+    blockchain: str = "solana"
+    wallet_type: str
+    public_address: str
+    purpose: str | None = None
+
+
 class GrowthResponse(BaseModel):
     max_bots: int
     max_generations: int
