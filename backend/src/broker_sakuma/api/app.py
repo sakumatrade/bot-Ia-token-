@@ -9,6 +9,7 @@ from broker_sakuma.api.routes import bots as bots_routes
 from broker_sakuma.api.routes import dashboard as dashboard_routes
 from broker_sakuma.api.routes import misc as misc_routes
 from broker_sakuma.api.routes import system as system_routes
+from broker_sakuma.api.routes import web as web_routes
 from broker_sakuma.config import Settings
 from broker_sakuma.db.base import Base, make_engine, make_session_factory
 
@@ -41,5 +42,6 @@ def create_app(settings: Settings | None = None, create_tables: bool = True) -> 
     app.include_router(bots_routes.router, prefix="/api")
     app.include_router(misc_routes.router, prefix="/api")
     app.include_router(system_routes.router, prefix="/api")
+    app.include_router(web_routes.router)
 
     return app

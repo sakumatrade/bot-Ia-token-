@@ -52,6 +52,21 @@ curl -H "X-API-Key: choose-a-long-random-secret" http://127.0.0.1:8765/api/dashb
 
 The macOS app's `APIClient` defaults to `http://127.0.0.1:8765`.
 
+## Browser dashboard (works on any OS, no Xcode needed)
+
+With the Local API running (above), open in any browser:
+
+```
+http://127.0.0.1:8765/dashboard
+```
+
+Paste your API key into "Configurações da conexão" the first time — it's
+saved in that browser's `localStorage` only. This is a pragmatic,
+cross-platform complement to the native macOS app (which is what the spec
+actually asks for): the backend is plain Python and already runs
+anywhere, so this page works today without Xcode, a Mac, or any build
+step, while the native app remains the primary experience.
+
 ## Building the macOS app (on a Mac)
 
 ```

@@ -575,6 +575,40 @@ knew.
 ## Cumulative test count: 171 Python (`pytest -q` in `backend/`) + 7 Swift
 (verified via CI) + 6 TypeScript/structural (`npm test` in `extension/`).
 
+## Post-Phase-17 addition — browser-based dashboard
+
+**Not in the original 17-phase plan** — added because the user's real
+Mac (Intel MacBook Air, macOS Sequoia 15.7, well below the macOS 26.6 the
+current App Store Xcode requires) got stuck mid-setup, and the backend
+being plain Python meant a cross-platform fallback was a same-day fix
+rather than a redesign.
+- Files: `backend/src/broker_sakuma/web/static/index.html`,
+  `backend/src/broker_sakuma/api/routes/web.py`.
+- Features: a single self-contained HTML/CSS/JS page (no build step, no
+  npm) served at `GET /dashboard` (and `GET /` redirects there) — status
+  badge, capital/reserve/P&L/bot-count tiles, bot list, alerts list, and
+  Pausar/Retomar/Parada de Emergência buttons (kill-switch prompts for a
+  reason client-side, matching the API's requirement). It is the exact
+  same client pattern as the Safari extension: the API key lives in that
+  browser's own `localStorage`, sent as `X-API-Key` on every `/api/*`
+  call the page's own JavaScript makes — this route itself serves no
+  data, only markup, so it's deliberately **not** behind
+  `require_api_key` (verified by `test_dashboard_page_is_public_but_serves_no_data`,
+  and the security-hardening route-auth test was narrowed to scope only
+  routers actually mounted under `/api`, so this intentional exception
+  doesn't silently widen what that test accepts).
+- **Verified for real**: started the server with `uvicorn`, curled `/`
+  (307 → `/dashboard`) and `/dashboard` (200, no key required, HTML
+  references `/api/dashboard` for its actual data rather than embedding
+  any).
+- Tests: 1 new test in `test_api.py`; `test_security_hardening.py`'s
+  route-auth test updated accordingly. 172 tests passing overall.
+- Known limitations: no auto-update mechanism yet (spec section 50 is
+  still native-app scope); this page is a monitoring/control surface, not
+  a replacement for the native app's Simple/Advanced mode split or the
+  future setup wizard; it inherits the Local API's single-shared-key auth
+  model, so treat that key with the same care as any admin credential.
+
 ## Status: all 17 phases from the original plan have a first pass built.
 
 What's left is exclusively the work that genuinely requires a Mac (the

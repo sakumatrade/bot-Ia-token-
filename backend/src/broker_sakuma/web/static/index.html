@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Broker Sakuma</title>
+<style>
+  :root {
+    --bg: #f5f5f7;
+    --card: #ffffff;
+    --text: #1c1c1e;
+    --muted: #6e6e73;
+    --border: #e5e5ea;
+    --green: #34c759;
+    --yellow: #ffcc00;
+    --orange: #ff9500;
+    --red: #ff3b30;
+    --blue: #0a84ff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1e;
+      --card: #2c2c2e;
+      --text: #f5f5f7;
+      --muted: #98989d;
+      --border: #3a3a3c;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 16px;
+  }
+  .wrap { max-width: 780px; margin: 0 auto; }
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  h1 { font-size: 22px; margin: 0; }
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: var(--card);
+    border: 1px solid var(--border);
+  }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); }
+  .dot.online { background: var(--green); }
+  .dot.paused { background: var(--yellow); }
+  .dot.safe_halt { background: var(--orange); }
+  .dot.emergency_stop { background: var(--red); }
+
+  button {
+    font: inherit;
+    font-size: 13px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text);
+    cursor: pointer;
+  }
+  button.primary { background: var(--blue); color: white; border-color: var(--blue); }
+  button.danger { background: var(--red); color: white; border-color: var(--red); }
+  button:disabled { opacity: 0.5; cursor: default; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 14px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+  }
+  .tile { padding: 4px 0; }
+  .tile .label { font-size: 12px; color: var(--muted); }
+  .tile .value { font-size: 20px; font-weight: 600; }
+  .value.pos { color: var(--green); }
+  .value.neg { color: var(--red); }
+
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .hint { color: var(--muted); font-size: 12px; }
+  .error { color: var(--red); font-size: 14px; }
+  ul.plain { list-style: none; padding: 0; margin: 0; }
+  ul.plain li {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  ul.plain li:last-child { border-bottom: none; }
+  .settings-row { display: flex; flex-direction: column; gap: 8px; }
+  .settings-row input {
+    font: inherit;
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+  }
+  details summary { cursor: pointer; font-size: 13px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Broker Sakuma</h1>
+    <span id="status-badge" class="status-badge"><span class="dot" id="status-dot"></span><span id="status-text">Carregando…</span></span>
+  </header>
+
+  <div class="card">
+    <details id="settings-details">
+      <summary>Configurações da conexão</summary>
+      <div class="settings-row" style="margin-top: 10px;">
+        <label for="base-url">Endereço da API Local</label>
+        <input id="base-url" type="text" placeholder="http://127.0.0.1:8765" />
+        <label for="api-key">Chave da API</label>
+        <input id="api-key" type="password" placeholder="Cole sua chave aqui" autocomplete="off" />
+        <div>
+          <button id="save-settings" class="primary">Salvar</button>
+          <span id="save-status" class="hint"></span>
+        </div>
+        <p class="hint">
+          Esta chave é a mesma configurada no backend (BROKER_SAKUMA_LOCAL_API__API_KEY).
+          Nunca é uma frase de recuperação ou chave privada de carteira — esta página nunca lida com isso.
+          Fica guardada só neste navegador (localStorage), nunca é enviada a mais ninguém além do seu próprio backend local.
+        </p>
+      </div>
+    </details>
+  </div>
+
+  <div id="content">
+    <p class="hint">Conectando…</p>
+  </div>
+
+  <div class="card">
+    <strong>O que o bot está fazendo</strong>
+    <ul class="plain" id="bots-list"><li class="hint">—</li></ul>
+  </div>
+
+  <div class="card">
+    <strong>Alertas</strong>
+    <ul class="plain" id="alerts-list"><li class="hint">Nenhum alerta.</li></ul>
+  </div>
+</div>
+
+<script>
+(function () {
+  const DEFAULT_BASE_URL = "http://127.0.0.1:8765";
+
+  function loadSettings() {
+    return {
+      baseUrl: localStorage.getItem("brokerSakuma.baseUrl") || DEFAULT_BASE_URL,
+      apiKey: localStorage.getItem("brokerSakuma.apiKey") || "",
+    };
+  }
+
+  function saveSettings(baseUrl, apiKey) {
+    localStorage.setItem("brokerSakuma.baseUrl", baseUrl);
+    localStorage.setItem("brokerSakuma.apiKey", apiKey);
+  }
+
+  const STATE_LABELS = {
+    ONLINE: "Funcionando normalmente",
+    PAUSED: "Pausado",
+    SAFE_HALT: "Parado por segurança",
+    EMERGENCY_STOP: "Parada de emergência",
+  };
+
+  function fmtUsd(value) {
+    return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  async function api(path, options) {
+    const { baseUrl, apiKey } = loadSettings();
+    if (!apiKey) {
+      throw new Error("NO_KEY");
+    }
+    let response;
+    try {
+      response = await fetch(baseUrl + path, {
+        ...options,
+        headers: { "X-API-Key": apiKey, "Content-Type": "application/json", ...(options && options.headers) },
+      });
+    } catch (e) {
+      throw new Error("NOT_CONNECTED");
+    }
+    if (response.status === 401) throw new Error("BAD_KEY");
+    if (!response.ok) throw new Error("SERVER_ERROR:" + response.status);
+    return response.json();
+  }
+
+  function setStatusBadge(state) {
+    const dot = document.getElementById("status-dot");
+    const text = document.getElementById("status-text");
+    dot.className = "dot " + (state ? state.toLowerCase() : "");
+    text.textContent = state ? (STATE_LABELS[state] || state) : "Desconhecido";
+  }
+
+  function renderError(message) {
+    document.getElementById("content").innerHTML = '<div class="card"><p class="error">' + escapeHtml(message) + "</p></div>";
+    setStatusBadge(null);
+  }
+
+  function messageFor(err) {
+    switch (err.message) {
+      case "NO_KEY":
+        return "Configure a chave da API acima em \"Configurações da conexão\".";
+      case "NOT_CONNECTED":
+        return "O Broker Sakuma não conseguiu se conectar ao backend agora. Ele está rodando?";
+      case "BAD_KEY":
+        return "Chave de API inválida.";
+      default:
+        return "O Broker Sakuma não conseguiu consultar a informação agora.";
+    }
+  }
+
+  async function sendSystemAction(action, body) {
+    try {
+      await api("/api/system/" + action, { method: "POST", body: body ? JSON.stringify(body) : undefined });
+      await refresh();
+    } catch (err) {
+      alert(messageFor(err));
+    }
+  }
+
+  function renderDashboard(dashboard) {
+    setStatusBadge(dashboard.system_state);
+    const daily = dashboard.daily_pnl_usd;
+    const total = dashboard.total_pnl_usd;
+    document.getElementById("content").innerHTML =
+      '<div class="card">' +
+      '<div class="grid">' +
+      tile("Capital operacional", fmtUsd(dashboard.capital_operational_usd)) +
+      tile("Reserva", fmtUsd(dashboard.reserve_usd)) +
+      tile("P&L do dia", fmtUsd(daily), daily >= 0 ? "pos" : "neg") +
+      tile("P&L total", fmtUsd(total), total >= 0 ? "pos" : "neg") +
+      tile("Bots ativos", dashboard.active_bots) +
+      tile("Bots mortos", dashboard.dead_bots) +
+      tile("Ressurreições", dashboard.resurrected_bots) +
+      tile("Taxa de sucesso", Math.round(dashboard.success_rate * 100) + "%") +
+      "</div>" +
+      '<div class="actions">' +
+      '<button id="btn-pause">Pausar</button>' +
+      '<button id="btn-resume">Retomar</button>' +
+      '<button id="btn-kill" class="danger">🛑 Parada de Emergência</button>' +
+      "</div>" +
+      "</div>";
+
+    document.getElementById("btn-pause").addEventListener("click", () => sendSystemAction("pause"));
+    document.getElementById("btn-resume").addEventListener("click", () => sendSystemAction("resume"));
+    document.getElementById("btn-kill").addEventListener("click", () => {
+      const reason = prompt(
+        "Isso bloqueia novas operações, novos bots e transferências até ser reiniciado manualmente.\n\nDigite o motivo para confirmar:"
+      );
+      if (reason && reason.trim()) {
+        sendSystemAction("kill-switch", { reason: reason.trim() });
+      }
+    });
+  }
+
+  function tile(label, value, extraClass) {
+    return (
+      '<div class="tile"><div class="label">' +
+      escapeHtml(label) +
+      '</div><div class="value ' +
+      (extraClass || "") +
+      '">' +
+      escapeHtml(String(value)) +
+      "</div></div>"
+    );
+  }
+
+  async function refreshBots() {
+    const list = document.getElementById("bots-list");
+    try {
+      const bots = await api("/api/bots");
+      if (!bots.length) {
+        list.innerHTML = '<li class="hint">Nenhum bot criado ainda.</li>';
+        return;
+      }
+      list.innerHTML = bots
+        .slice(0, 15)
+        .map((b) => "<li><span>" + escapeHtml(b.name) + "</span><span>" + escapeHtml(b.state) + "</span></li>")
+        .join("");
+    } catch (err) {
+      list.innerHTML = '<li class="hint">' + escapeHtml(messageFor(err)) + "</li>";
+    }
+  }
+
+  async function refreshAlerts() {
+    const list = document.getElementById("alerts-list");
+    try {
+      const alerts = await api("/api/alerts");
+      const pending = alerts.filter((a) => !a.acknowledged);
+      if (!pending.length) {
+        list.innerHTML = '<li class="hint">Nenhum alerta pendente.</li>';
+        return;
+      }
+      list.innerHTML = pending
+        .slice(0, 10)
+        .map((a) => "<li><span>" + escapeHtml(a.title) + "</span><span>" + escapeHtml(a.level) + "</span></li>")
+        .join("");
+    } catch (err) {
+      list.innerHTML = '<li class="hint">' + escapeHtml(messageFor(err)) + "</li>";
+    }
+  }
+
+  async function refresh() {
+    try {
+      const dashboard = await api("/api/dashboard");
+      renderDashboard(dashboard);
+    } catch (err) {
+      renderError(messageFor(err));
+    }
+    await refreshBots();
+    await refreshAlerts();
+  }
+
+  function initSettingsForm() {
+    const { baseUrl, apiKey } = loadSettings();
+    document.getElementById("base-url").value = baseUrl;
+    document.getElementById("api-key").value = apiKey;
+    if (!apiKey) document.getElementById("settings-details").open = true;
+
+    document.getElementById("save-settings").addEventListener("click", () => {
+      const newBaseUrl = document.getElementById("base-url").value.trim() || DEFAULT_BASE_URL;
+      const newApiKey = document.getElementById("api-key").value.trim();
+      saveSettings(newBaseUrl, newApiKey);
+      document.getElementById("save-status").textContent = "Salvo.";
+      setTimeout(() => (document.getElementById("save-status").textContent = ""), 2000);
+      refresh();
+    });
+  }
+
+  initSettingsForm();
+  refresh();
+  setInterval(refresh, 5000);
+})();
+</script>
+</body>
+</html>

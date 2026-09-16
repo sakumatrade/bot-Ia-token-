@@ -129,6 +129,24 @@ def test_empty_lists_are_returned_for_untouched_resources(client, auth_headers):
         assert response.json() == []
 
 
+def test_dashboard_page_is_public_but_serves_no_data(client):
+    """The browser-based dashboard (spec: pragmatic cross-platform
+    complement to the macOS app) is static markup only — it must load
+    without an API key. The page's own JavaScript then calls the
+    authenticated /api/* endpoints from the browser, same as the Safari
+    extension.
+    """
+
+    response = client.get("/dashboard")
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    assert "<script>" in response.text  # data comes from JS calling /api/*, not embedded here
+
+    root_response = client.get("/", follow_redirects=False)
+    assert root_response.status_code in (302, 307)
+    assert root_response.headers["location"] == "/dashboard"
+
+
 def test_growth_endpoint_reports_configured_limits(client, auth_headers):
     response = client.get("/api/growth", headers=auth_headers)
     assert response.status_code == 200

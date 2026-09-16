@@ -102,7 +102,10 @@ def test_every_local_api_route_requires_authentication():
     constructed (e.g. ``dashboard_routes.router``), before the `/api`
     prefix from `app.py` is applied — its routes still carry whatever
     router-level `dependencies=[...]` were declared, which is exactly
-    what this test needs to check.
+    what this test needs to check. Only routers actually mounted under
+    `/api` are in scope: `web.py`'s dashboard page is deliberately public
+    (it serves static markup with no data — see its module docstring),
+    not an oversight this test should flag.
     """
 
     app = create_app(settings=Settings(database={"url": "sqlite:///:memory:"}, local_api={"api_key": "test-key"}))
@@ -110,10 +113,12 @@ def test_every_local_api_route_requires_authentication():
     api_routes = []
     for route in app.routes:
         original_router = getattr(route, "original_router", None)
-        if original_router is not None:
+        include_context = getattr(route, "include_context", None)
+        prefix = getattr(include_context, "prefix", "") if include_context is not None else ""
+        if original_router is not None and prefix == "/api":
             api_routes.extend(original_router.routes)
 
-    assert api_routes, "expected to find at least one included API route"
+    assert api_routes, "expected to find at least one included /api route"
 
     for route in api_routes:
         dependant = getattr(route, "dependant", None)
