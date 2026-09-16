@@ -490,18 +490,56 @@ or `xcrun`, so none of this could be executed here, only reviewed.
   `scripts/build_mac.sh` and open the result before this phase can be
   called done rather than "written."
 
+## Phase 16 — Security hardening pass
+
+**Completed**, in the sense a hardening pass should mean: not new
+features, but converting manual review findings into permanent,
+CI-enforced regression tests.
+- Manual review first (documented here since it's real signal, not just
+  the tests it produced): grepped the entire backend for
+  `eval`/`exec`/`subprocess`/`os.system`, `pickle`/`yaml.load`, raw SQL
+  string construction, hardcoded `password`/`api_key`/`secret` literals,
+  and `print()`/`TODO`/`FIXME` left behind — all clean. Confirmed every
+  one of the four API routers declares `dependencies=[Depends(
+  require_api_key)]` and `app.py` defines no bare unauthenticated route.
+- Files: `backend/tests/test_security_hardening.py` — turns that review
+  into four repo-wide structural tests: (1) no module under
+  `src/broker_sakuma` imports `subprocess`/`os` or calls `eval`/`exec`,
+  full stop, not just the two modules with their own targeted checks
+  (Learning, Telegram); (2) no module anywhere calls `.delete(...)` on
+  anything — the append-only guarantee for `audit_logs`/`post_mortems`
+  extended to "nothing in this codebase deletes any row from any table";
+  (3) no hardcoded secret-shaped assignment (`password = "..."`,
+  `api_key = "..."`, etc.) anywhere; (4) **walks the live FastAPI app**
+  (not source text) and asserts every included `/api/` route's dependency
+  graph actually contains `require_api_key` — this one was deliberately
+  verified to have teeth: a route was temporarily stripped of its auth
+  dependency, confirmed the test failed, then reverted and confirmed it
+  passed again clean.
+- Known limitations: this is static/structural hardening, not a
+  penetration test or a dependency-vulnerability scan (no network access
+  to a CVE database was used); monetary columns are still float, not
+  fixed-point Decimal (already flagged in `docs/ARCHITECTURE.md`,
+  deliberately not changed here — that's a bigger refactor, appropriately
+  scoped to before live trading, not to this pass); rate limiting on the
+  Local API was considered and deliberately skipped as low-value for a
+  loopback-only, API-key-gated service.
+
+## Cumulative test count: 168 Python (`pytest -q` in `backend/`) + 7 Swift
+(verified via CI) + 6 TypeScript/structural (`npm test` in `extension/`).
+
 ## Next phases (not yet built)
 
-16 (security hardening pass), 17 (full integration testing), plus the
-Wallet Manager GUI, Keychain-backed Signer, and Telegram setup wizard on
-the SwiftUI side, the native Safari extension wrapper (Mac-only), wiring
-TelegramControlService to an actual running bot (webhook/polling loop),
-and actually running the Phase 15 packaging scripts on a Mac. The SwiftUI
-app and the Safari extension can now both be pointed at a real, running
-Local API (see the root README's "Running the Local API" section) — that
-wiring (actually running everything together end-to-end on a Mac) still
-needs to be verified there, since this container can't run the macOS app
-or a real Safari session.
+17 (full integration testing), plus the Wallet Manager GUI, Keychain-
+backed Signer, and Telegram setup wizard on the SwiftUI side, the native
+Safari extension wrapper (Mac-only), wiring TelegramControlService to an
+actual running bot (webhook/polling loop), and actually running the Phase
+15 packaging scripts on a Mac. The SwiftUI app and the Safari extension
+can now both be pointed at a real, running Local API (see the root
+README's "Running the Local API" section) — that wiring (actually running
+everything together end-to-end on a Mac) still needs to be verified
+there, since this container can't run the macOS app or a real Safari
+session.
 
 ## macOS app — what the user needs to do on their own Mac
 
