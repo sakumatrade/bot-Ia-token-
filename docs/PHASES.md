@@ -370,20 +370,63 @@ macOS-only and not built here.**
   your recovery phrase" warning copy from spec section 34 belongs in that
   future GUI, not the backend.
 
-## Cumulative test count: 148 Python (`pytest -q` in `backend/`) + 7 Swift
+## Phase 13 — TelegramControlService
+
+**Completed** (control-plane logic + a real Bot API client; the in-app
+setup wizard is macOS GUI, not built yet).
+- Files: `backend/src/broker_sakuma/engines/telegram_control_service.py`,
+  `backend/src/broker_sakuma/adapters/telegram/{__init__,bot_client}.py`.
+- Features: roles resolved from `User.telegram_user_id` /
+  `User.telegram_role` (new column) — an unrecognized Telegram user, or
+  one with no role, is authorized for nothing. All 17 commands from spec
+  section 36 are in a fixed `TelegramCommand` enum with a closed
+  `COMMAND_PERMISSIONS` map (VIEWER: all read commands; OPERATOR: + pause/
+  resume; OWNER: + kill). **Every single attempt** — authorized, denied,
+  or unknown-command — writes an `AuditLog` row with the Telegram user ID,
+  timestamp, command, confirmation status, reason, and system state at the
+  time (spec section 36's exact requirement). `/kill` needs
+  `CONFIRM <reason>` in the same call — a bare `/kill` is safely rejected
+  and logged as an unconfirmed attempt without touching the system state.
+  `/daily` builds the exact field list from spec section 37 (Mother
+  Capital, Operational Capital, Reserve, Daily Result, Total Result,
+  Active/Dead Bots, Resurrections, New Strategies, New Theses, Capital
+  Loaned, Interest, Research, Alerts, System Status) from real queries —
+  `build_daily_report()` is reusable independently of the Telegram
+  formatting. `TelegramBotClient` wraps the real, public, documented
+  Telegram Bot API (`sendMessage`, `getUpdates`) — no business logic, just
+  request construction — tested against `httpx.MockTransport`, never a
+  real network call.
+- **Structural guarantee**: a dedicated AST-based test asserts the control
+  service module never imports `subprocess`/`os` and never calls
+  `eval`/`exec` — the actual mechanism behind "nunca permitir comandos
+  arbitrários do sistema operacional," not just a docstring promise, in
+  the same spirit as the LearningEngine and Wallet secret-column tests.
+- Tests: `test_telegram_control_service.py`,
+  `test_telegram_bot_client.py` — 16 tests. 164 tests passing overall.
+- Known limitations: no in-app setup wizard (macOS GUI, not built);
+  `TelegramBotClient` is never actually invoked by
+  `TelegramControlService` yet — wiring "handle_command() result ->
+  send_message()" plus a polling/webhook receiver loop is the next step,
+  deliberately left out until there's a real bot token to run it against
+  (this repo doesn't have one, and shouldn't invent a fake one to "prove"
+  it works end-to-end).
+
+## Cumulative test count: 164 Python (`pytest -q` in `backend/`) + 7 Swift
 (`swift test --package-path macapp`, verified via CI, not run locally).
 
 ## Next phases (not yet built)
 
-13 (Telegram), 14 (Safari extension), 15 (macOS *packaging* — .app bundle
-+ .dmg + notarization — still requires a Mac; CI here only proves the
-Swift code builds, it does not assemble or sign a distributable app), 16
-(security hardening pass), 17 (full integration testing), plus the
-Wallet Manager GUI and Keychain-backed Signer on the SwiftUI side. The
-SwiftUI app can now be pointed at a real, running Local API (see the root
-README's "Running the Local API" section) — that wiring (actually running
-both together end-to-end on a Mac) still needs to be verified there,
-since this container can't run the macOS app itself.
+14 (Safari extension), 15 (macOS *packaging* — .app bundle + .dmg +
+notarization — still requires a Mac; CI here only proves the Swift code
+builds, it does not assemble or sign a distributable app), 16 (security
+hardening pass), 17 (full integration testing), plus the Wallet Manager
+GUI, Keychain-backed Signer, and Telegram setup wizard on the SwiftUI
+side, and wiring TelegramControlService to an actual running bot
+(webhook/polling loop). The SwiftUI app can now be pointed at a real,
+running Local API (see the root README's "Running the Local API"
+section) — that wiring (actually running both together end-to-end on a
+Mac) still needs to be verified there, since this container can't run the
+macOS app itself.
 
 ## macOS app — what the user needs to do on their own Mac
 

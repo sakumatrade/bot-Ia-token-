@@ -173,6 +173,30 @@ class OpportunityCategory(str, enum.Enum):
     OTHER = "OTHER"
 
 
+class TelegramCommand(str, enum.Enum):
+    """spec section 36. Fixed, closed set — the dispatcher in
+    TelegramControlService only ever looks up one of these; there is no
+    code path that runs an arbitrary string as a command."""
+
+    STATUS = "status"
+    PAUSE = "pause"
+    RESUME = "resume"
+    BOTS = "bots"
+    PROFIT = "profit"
+    ALERTS = "alerts"
+    RESEARCH = "research"
+    WALLETS = "wallets"
+    OPPORTUNITIES = "opportunities"
+    LOGS = "logs"
+    KILL = "kill"
+    DEATHS = "deaths"
+    RESURRECTIONS = "resurrections"
+    LOANS = "loans"
+    RESERVES = "reserves"
+    GROWTH = "growth"
+    DAILY = "daily"
+
+
 class BotLifecycleEventType(str, enum.Enum):
     CREATED = "CREATED"
     STATE_CHANGE = "STATE_CHANGE"

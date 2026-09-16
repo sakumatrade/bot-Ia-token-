@@ -28,6 +28,7 @@ from broker_sakuma.core.enums import (
     ProtocolStatus,
     StrategyState,
     SystemState,
+    TelegramRole,
     ThesisState,
     TradeSide,
     TransferStatus,
@@ -42,7 +43,8 @@ class User(Base, IdMixin, TimestampMixin):
 
     email: Mapped[str] = mapped_column(String(255), unique=True)
     display_name: Mapped[str] = mapped_column(String(255))
-    telegram_user_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    telegram_user_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, unique=True)
+    telegram_role: Mapped[Optional[TelegramRole]] = mapped_column(String(16), nullable=True)
     is_owner: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
