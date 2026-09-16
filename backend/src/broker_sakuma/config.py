@@ -108,6 +108,25 @@ class TradingConfig(BaseModel):
     live_trading_enabled: bool = False
 
 
+class ProtocolRiskScoreConfig(BaseModel):
+    """Protocol Risk Score weights (spec section 24). 0 = safest, 100 =
+    riskiest. Deliberately scored only from evidence the schema actually
+    collects (TVL, volume, age, audit count, incident count) — it never
+    fabricates a concentration/smart-contract sub-score from data we don't
+    have (see docs/PHASES.md for why those are future work, not guesses).
+    """
+
+    baseline_score: float = 50.0
+    max_audit_reduction: float = 20.0
+    audit_score_reduction_per_audit: float = 10.0
+    incident_score_penalty_per_incident: float = 15.0
+    age_days_for_full_credit: int = 365
+    max_age_score_reduction: float = 15.0
+    tvl_usd_for_full_credit: float = 1_000_000.0
+    max_tvl_score_reduction: float = 15.0
+    paper_eligible_max_risk_score: float = 60.0
+
+
 class LocalAPIConfig(BaseModel):
     """Local API (spec section 38). No default API key is baked in: an
     unset key means the dependency rejects every request rather than
@@ -140,6 +159,7 @@ class Settings(BaseSettings):
     telegram: TelegramConfig = Field(default_factory=TelegramConfig)
     trading: TradingConfig = Field(default_factory=TradingConfig)
     local_api: LocalAPIConfig = Field(default_factory=LocalAPIConfig)
+    protocol_risk_score: ProtocolRiskScoreConfig = Field(default_factory=ProtocolRiskScoreConfig)
 
 
 def get_settings() -> Settings:

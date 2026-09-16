@@ -263,21 +263,56 @@ endpoints, since transfers aren't built yet either).
   limiting; `/api/trades` only returns paper trades (no live `trades` yet,
   since there's no live executor).
 
-## Cumulative test count: 112 Python (`pytest -q` in `backend/`) + 7 Swift
+## Phase 10 — Research Lab + Protocol Discovery
+
+**Completed.**
+- Files: `backend/src/broker_sakuma/engines/{protocol_discovery,
+  crypto_discovery}.py`.
+- Features: `ProtocolDiscoveryAgent.register_protocol()` is idempotent
+  (re-discovering the same name+blockchain returns the existing row) and
+  always starts a protocol at `RESEARCH_ONLY`. `compute_risk_score()`
+  produces a transparent 0 (safest) to 100 (riskiest) score from evidence
+  the schema actually stores — audit count, incident count, age, TVL —
+  and deliberately does **not** fabricate the concentration/smart-contract
+  sub-scores spec section 24 lists, since we don't collect that data yet;
+  inventing a number for it would violate "nunca simular uma integração
+  real como se fosse funcional." `update_evidence()` only overwrites
+  fields explicitly passed, never backfilling a missing metric with a
+  guess. `evaluate_for_paper_eligibility()` requires a risk score to exist
+  first and only promotes below a configured threshold.
+  **Structural guarantee**: `ProtocolStatus` has exactly four values
+  (RESEARCH_ONLY, PAPER_ELIGIBLE, REVIEW_REQUIRED, DISABLED) — there is no
+  fifth "approved for live trading" status anywhere in the enum, so
+  nothing can "jump straight from discovery to real operation" because
+  there's no status value that would even mean that. Tested explicitly.
+  `CryptoDiscoveryEngine` logs opportunities across the categories in spec
+  section 23 (DEX, DeFi, arbitrage, staking, lending, LP, launchpad,
+  yield, infra, cross-chain) and can mark one `IGNORE` with a reason — the
+  system is allowed to just not act (spec section 22). `RevenueDiscoveryEngine`
+  bridges a "new revenue idea" into both the shared learning feed and a
+  tracked opportunity. `CryptoResearchLab.board()` groups protocols by
+  status for the dashboard (spec section 25).
+- Tests: `test_protocol_discovery.py`, `test_crypto_discovery.py` — 16
+  tests. 128 tests passing overall.
+- Known limitations: no live data adapters feed `update_evidence()` yet
+  (that's Phase 11's Pump.fun adapter and later cross-protocol adapters) —
+  today it's only exercised with caller-supplied evidence, same as the
+  rest of the research layer until real integrations exist.
+
+## Cumulative test count: 128 Python (`pytest -q` in `backend/`) + 7 Swift
 (`swift test --package-path macapp`, verified via CI, not run locally).
 
 ## Next phases (not yet built)
 
-10 (research lab/protocol discovery), 11 (Pump.fun adapter), 12 (wallet
-manager + Keychain signer), 13 (Telegram), 14 (Safari extension), 15
-(macOS *packaging* — .app bundle + .dmg + notarization — still requires a
-Mac; CI here only proves the Swift code builds, it does not assemble or
-sign a distributable app), 16 (security hardening pass), 17 (full
-integration testing). The SwiftUI app can now be pointed at a real,
-running Local API (see the root README's "Running the Local API"
-section) — that wiring (actually running both together end-to-end on a
-Mac) still needs to be verified there, since this container can't run the
-macOS app itself.
+11 (Pump.fun adapter), 12 (wallet manager + Keychain signer), 13
+(Telegram), 14 (Safari extension), 15 (macOS *packaging* — .app bundle +
+.dmg + notarization — still requires a Mac; CI here only proves the Swift
+code builds, it does not assemble or sign a distributable app), 16
+(security hardening pass), 17 (full integration testing). The SwiftUI app
+can now be pointed at a real, running Local API (see the root README's
+"Running the Local API" section) — that wiring (actually running both
+together end-to-end on a Mac) still needs to be verified there, since
+this container can't run the macOS app itself.
 
 ## macOS app — what the user needs to do on their own Mac
 

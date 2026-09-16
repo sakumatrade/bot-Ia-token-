@@ -156,6 +156,23 @@ class TelegramRole(str, enum.Enum):
     OWNER = "OWNER"
 
 
+class OpportunityCategory(str, enum.Enum):
+    """spec section 23: categories CryptoDiscoveryEngine researches.
+    Research only — none of these imply execution."""
+
+    DEX = "DEX"
+    DEFI = "DEFI"
+    ARBITRAGE = "ARBITRAGE"
+    STAKING = "STAKING"
+    LENDING = "LENDING"
+    LIQUIDITY_POOL = "LIQUIDITY_POOL"
+    LAUNCHPAD = "LAUNCHPAD"
+    YIELD = "YIELD"
+    INFRASTRUCTURE = "INFRASTRUCTURE"
+    CROSS_CHAIN = "CROSS_CHAIN"
+    OTHER = "OTHER"
+
+
 class BotLifecycleEventType(str, enum.Enum):
     CREATED = "CREATED"
     STATE_CHANGE = "STATE_CHANGE"
