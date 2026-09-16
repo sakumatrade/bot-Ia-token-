@@ -101,7 +101,7 @@ class BotLineage(Base, IdMixin, TimestampMixin):
 class BotLifecycleEvent(Base, IdMixin, TimestampMixin):
     __tablename__ = "bot_lifecycle_events"
 
-    bot_id: Mapped[str] = mapped_column(ForeignKey("bots.id"))
+    bot_id: Mapped[str] = mapped_column(ForeignKey("bots.id"), index=True)
     event_type: Mapped[BotLifecycleEventType] = mapped_column(String(32))
     from_state: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
     to_state: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
@@ -191,9 +191,15 @@ class Backtest(Base, IdMixin, TimestampMixin):
 
 
 class PaperTrade(Base, IdMixin, TimestampMixin):
+    """Grows without bound as bots trade, including dead ones — indexed on
+    ``(bot_id, executed_at)`` so the ``/api/trades`` list and per-bot
+    lookups stay fast as history accumulates, without ever deleting a row
+    (spec sections 13/47: trade history is exactly what post-mortems and
+    collective memory learn from)."""
+
     __tablename__ = "paper_trades"
 
-    bot_id: Mapped[str] = mapped_column(ForeignKey("bots.id"))
+    bot_id: Mapped[str] = mapped_column(ForeignKey("bots.id"), index=True)
     token_id: Mapped[Optional[str]] = mapped_column(ForeignKey("tokens.id"), nullable=True)
     side: Mapped[TradeSide] = mapped_column(String(8))
     price: Mapped[float] = mapped_column(Float)
@@ -202,7 +208,7 @@ class PaperTrade(Base, IdMixin, TimestampMixin):
     slippage_pct: Mapped[float] = mapped_column(Float, default=0.0)
     simulated_pnl_usd: Mapped[float] = mapped_column(Float, default=0.0)
     idempotency_key: Mapped[str] = mapped_column(String(128), unique=True)
-    executed_at: Mapped[datetime]
+    executed_at: Mapped[datetime] = mapped_column(index=True)
 
 
 class Trade(Base, IdMixin, TimestampMixin):
@@ -260,7 +266,7 @@ class LearningEvent(Base, IdMixin, TimestampMixin):
 class RiskEvent(Base, IdMixin, TimestampMixin):
     __tablename__ = "risk_events"
 
-    bot_id: Mapped[Optional[str]] = mapped_column(ForeignKey("bots.id"), nullable=True)
+    bot_id: Mapped[Optional[str]] = mapped_column(ForeignKey("bots.id"), nullable=True, index=True)
     event_type: Mapped[str] = mapped_column(String(64))
     severity: Mapped[str] = mapped_column(String(16), default="INFO")
     details: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
@@ -292,7 +298,7 @@ class Alert(Base, IdMixin, TimestampMixin):
     title: Mapped[str] = mapped_column(String(255))
     message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     source: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    acknowledged: Mapped[bool] = mapped_column(Boolean, default=False)
+    acknowledged: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
 
 
 class AuditLog(Base, IdMixin, TimestampMixin):
@@ -303,7 +309,7 @@ class AuditLog(Base, IdMixin, TimestampMixin):
     actor: Mapped[str] = mapped_column(String(255))
     action: Mapped[str] = mapped_column(String(128))
     entity_type: Mapped[str] = mapped_column(String(64))
-    entity_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    entity_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True, index=True)
     details: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
 
 
@@ -345,7 +351,7 @@ class LoanPayment(Base, IdMixin, TimestampMixin):
 class FundingEvent(Base, IdMixin, TimestampMixin):
     __tablename__ = "funding_events"
 
-    bot_id: Mapped[str] = mapped_column(ForeignKey("bots.id"))
+    bot_id: Mapped[str] = mapped_column(ForeignKey("bots.id"), index=True)
     mother_id: Mapped[str] = mapped_column(ForeignKey("bots.id"))
     amount_usd: Mapped[float] = mapped_column(Float)
     funding_type: Mapped[str] = mapped_column(String(32))  # initial_thesis | escalation | loan

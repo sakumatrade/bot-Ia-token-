@@ -76,6 +76,41 @@ added this way is always `WATCH_ONLY`. Nothing here can sign or send a
 real transaction; see `docs/ARCHITECTURE.md#security` and
 `engines/signer.py` for why that's a structural guarantee, not a policy.
 
+## Creating and activating a bot from the terminal
+
+With the Local API running (above), these three `curl` commands create the
+Mother Bot, spawn a Son under it, and "activate" that Son — funding it with
+the fixed **$5 simulated stake** (spec section 10's $5 rule) from the
+Mother Bot's own simulated treasury. Everything here is a plain number in
+this backend's own database; there is no wallet, private key, or
+blockchain call anywhere in this flow — see
+`docs/ARCHITECTURE.md#security` for why that's a structural guarantee.
+
+```bash
+API_KEY="choose-a-long-random-secret"   # same value you started uvicorn with
+
+# 1. Create the Mother Bot once, with however much simulated starting capital you want.
+curl -s -X POST http://127.0.0.1:8765/api/bots/mother \
+  -H "X-API-Key: $API_KEY" -H "Content-Type: application/json" \
+  -d '{"name": "Mother Bot", "initial_capital_usd": 1000}'
+
+# 2. Copy the "id" field from that response, then spawn a Son under it.
+curl -s -X POST http://127.0.0.1:8765/api/bots/sons \
+  -H "X-API-Key: $API_KEY" -H "Content-Type: application/json" \
+  -d '{"parent_id": "PASTE-THE-MOTHER-ID-HERE", "name": "Son 001"}'
+
+# 3. Copy the Son's "id", then activate it — this starts its first thesis at $5.
+curl -s -X POST http://127.0.0.1:8765/api/bots/PASTE-THE-SON-ID-HERE/activate \
+  -H "X-API-Key: $API_KEY"
+```
+
+After step 3, `curl -H "X-API-Key: $API_KEY" http://127.0.0.1:8765/api/bots`
+or the browser dashboard at `/dashboard` will show the Son as `ACTIVE`
+with `capital_operational_usd: 5.0`. There is no field anywhere in these
+endpoints to request a different starting amount — the $5 rule is
+enforced by `ThesisEngine.start_initial_test`, which takes no capital
+argument at all.
+
 ## Telegram profit notifications
 
 To get a message whenever a bot's trade closes with a profit:
@@ -98,6 +133,27 @@ To get a message whenever a bot's trade closes with a profit:
 Nothing here executes arbitrary commands or touches a wallet — it only
 ever sends a plain-text message when `engines/telegram_notifications.py`'s
 `ProfitNotifier` sees a trade with positive realized P&L.
+
+## Data retention: nothing is ever deleted
+
+When a bot dies, its full trade history, lifecycle events and audit trail
+stay in the database forever — that history is exactly what the
+post-mortem and collective-memory features (spec sections 13, 16) learn
+from, and `test_no_module_anywhere_deletes_a_database_row` (in
+`tests/test_security_hardening.py`) enforces this as a permanent,
+CI-checked rule: no code path anywhere in this codebase may issue a
+`DELETE`. So the server stays fast as history grows a different way —
+without discarding anything:
+
+- List endpoints that can grow without bound (`/api/trades`, `/api/alerts`,
+  `/api/opportunities`, `/api/research`) accept `?limit=` and `?offset=`
+  query parameters (default `limit=200`, max `1000`) instead of always
+  returning every row ever written.
+- The database tables most bots write to repeatedly (`paper_trades`,
+  `risk_events`, `bot_lifecycle_events`, `funding_events`, `audit_logs`,
+  `alerts`) are indexed on the columns those queries actually filter by
+  (`bot_id`, `executed_at`/`created_at`), so lookups stay fast regardless
+  of how many bots have died.
 
 ## Building the macOS app (on a Mac)
 

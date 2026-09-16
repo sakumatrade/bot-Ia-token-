@@ -691,6 +691,51 @@ fake a working integration" rule, so it stays documented as exactly that:
 not done, not fakeable, waiting on a Mac and on real external
 credentials/APIs that don't belong in this repository.
 
+## Post-Phase-17 addition: terminal-friendly bot activation, and keeping the server light
+
+Two more requests came in from the user, both handled entirely inside the
+existing safety architecture rather than by adding new escape hatches:
+
+1. **"Activate the bot and give it a wallet with money to work with, all
+   from the terminal."** The literal request (a real wallet, real money)
+   was declined again, for the same reason as every earlier real-money
+   request: no signer exists in this backend (`engines/signer.py`), and
+   nothing here can or should move real funds. What was actually
+   buildable — and what the user needed — was three curl-friendly
+   endpoints on `api/routes/bots.py`: `POST /api/bots/mother` (creates the
+   one root bot with a chosen simulated starting balance),
+   `POST /api/bots/sons` (spawns a Son under it via the existing
+   `LineageEngine`), and `POST /api/bots/{id}/activate` (runs the
+   existing `ThesisEngine` state machine through to `INITIAL_TEST` and
+   funds it via `BotLoanEngine.create_loan` from the Mother's simulated
+   treasury). "Activating" a bot is exactly the $5-rule flow every other
+   phase already exercises — `ThesisEngine.start_initial_test` still
+   takes no capital argument, so `/activate` has no way to request an
+   amount other than $5 even if a caller tries (see
+   `test_activate_bot_requires_5_dollars_regardless_of_requested_amount`
+   in `tests/test_bot_activation.py`). README.md now has the exact three
+   `curl` commands, since the user has consistently preferred terminal
+   instructions over Xcode/GUI clicking throughout this project.
+
+2. **"So the server doesn't get too heavy, delete unnecessary files/data
+   when a bot dies."** Literal deletion was not built: it would violate
+   `test_no_module_anywhere_deletes_a_database_row`
+   (`tests/test_security_hardening.py`), a deliberate, CI-enforced rule
+   that nothing in this codebase may `DELETE` a row — because a dead
+   bot's trade history, lifecycle events and audit trail are exactly what
+   `BotPostMortemEngine` and `CollectiveMemoryStore` learn from (spec
+   sections 13, 16). Discarding it after death would silently break the
+   system's own post-mortem/learning features. What actually keeps the
+   server light without losing anything: `db/models.py` gained indexes on
+   the columns the growing tables (`paper_trades`, `risk_events`,
+   `bot_lifecycle_events`, `funding_events`, `audit_logs`, `alerts`) are
+   actually queried by (`bot_id`, `executed_at`/`created_at`,
+   `entity_id`, `acknowledged`), and `api/routes/misc.py`'s list
+   endpoints (`/trades`, `/alerts`, `/opportunities`, `/research`) now
+   accept `?limit=`/`?offset=` (default 200, max 1000) instead of always
+   returning every row ever written. Every row a dead bot ever produced
+   is still there forever; only a single response's size is bounded.
+
 ## macOS app — what the user needs to do on their own Mac
 
 Compiling in CI proves the code is correct; it does not give you a

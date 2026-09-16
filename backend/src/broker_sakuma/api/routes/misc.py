@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -26,15 +26,31 @@ from broker_sakuma.engines.wallet_manager import DuplicateWalletError, WalletMan
 router = APIRouter(tags=["misc"], dependencies=[Depends(require_api_key)])
 
 
+def _limit_query(default: int = 200) -> int:
+    """Bounds how many rows a list endpoint returns per call (spec: the
+    server must stay light no matter how much history dead bots
+    accumulate). Nothing is ever deleted to achieve this — every row
+    stays in the database forever for post-mortems/collective memory
+    (spec sections 13/47) — this only bounds a single response's size;
+    pass a smaller/larger `limit` or `offset` to page through older rows.
+    """
+
+    return Query(default=default, ge=1, le=1000)
+
+
 @router.get("/opportunities", response_model=list[OpportunitySummary])
-def list_opportunities(db: Session = Depends(get_db)) -> list[models.Opportunity]:
-    stmt = select(models.Opportunity).order_by(models.Opportunity.created_at.desc())
+def list_opportunities(
+    db: Session = Depends(get_db), limit: int = _limit_query(), offset: int = Query(default=0, ge=0)
+) -> list[models.Opportunity]:
+    stmt = select(models.Opportunity).order_by(models.Opportunity.created_at.desc()).offset(offset).limit(limit)
     return list(db.execute(stmt).scalars())
 
 
 @router.get("/trades", response_model=list[PaperTradeSummary])
-def list_trades(db: Session = Depends(get_db)) -> list[models.PaperTrade]:
-    stmt = select(models.PaperTrade).order_by(models.PaperTrade.executed_at.desc())
+def list_trades(
+    db: Session = Depends(get_db), limit: int = _limit_query(), offset: int = Query(default=0, ge=0)
+) -> list[models.PaperTrade]:
+    stmt = select(models.PaperTrade).order_by(models.PaperTrade.executed_at.desc()).offset(offset).limit(limit)
     return list(db.execute(stmt).scalars())
 
 
@@ -45,14 +61,18 @@ def list_strategies(db: Session = Depends(get_db)) -> list[models.Strategy]:
 
 
 @router.get("/alerts", response_model=list[AlertSummary])
-def list_alerts(db: Session = Depends(get_db)) -> list[models.Alert]:
-    stmt = select(models.Alert).order_by(models.Alert.created_at.desc())
+def list_alerts(
+    db: Session = Depends(get_db), limit: int = _limit_query(), offset: int = Query(default=0, ge=0)
+) -> list[models.Alert]:
+    stmt = select(models.Alert).order_by(models.Alert.created_at.desc()).offset(offset).limit(limit)
     return list(db.execute(stmt).scalars())
 
 
 @router.get("/research", response_model=list[ResearchReportSummary])
-def list_research(db: Session = Depends(get_db)) -> list[models.ResearchReport]:
-    stmt = select(models.ResearchReport).order_by(models.ResearchReport.created_at.desc())
+def list_research(
+    db: Session = Depends(get_db), limit: int = _limit_query(), offset: int = Query(default=0, ge=0)
+) -> list[models.ResearchReport]:
+    stmt = select(models.ResearchReport).order_by(models.ResearchReport.created_at.desc()).offset(offset).limit(limit)
     return list(db.execute(stmt).scalars())
 
 

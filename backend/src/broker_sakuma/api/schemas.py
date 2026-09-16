@@ -176,6 +176,27 @@ class AddWalletRequest(BaseModel):
     purpose: str | None = None
 
 
+class CreateMotherBotRequest(BaseModel):
+    """Simulated starting capital only — a plain number in this system's
+    own database, never a blockchain balance or a real wallet (see
+    ``docs/ARCHITECTURE.md#security``: there is no code path anywhere in
+    this backend that can move real funds)."""
+
+    name: str = "Mother Bot"
+    initial_capital_usd: float = 1000.0
+
+
+class SpawnSonRequest(BaseModel):
+    parent_id: str
+    name: str | None = None
+
+
+class ActivateBotResponse(BaseModel):
+    bot: BotSummary
+    thesis_id: str
+    initial_capital_usd: float
+
+
 class GrowthResponse(BaseModel):
     max_bots: int
     max_generations: int
