@@ -35,7 +35,7 @@ struct DashboardView: View {
     }
 
     private var simulationBanner: some View {
-        Text("🧪 Modo de testes — dinheiro simulado, para você aprender e testar estratégias sem risco.")
+        Text("🧪 Modo de teste")
             .font(.caption.weight(.semibold))
             .foregroundStyle(.black)
             .frame(maxWidth: .infinity)

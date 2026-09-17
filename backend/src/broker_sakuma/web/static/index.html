@@ -135,6 +135,13 @@
     flex-direction: column;
     gap: 2px;
   }
+  .menu-dropdown[hidden] {
+    /* The class rule above sets display:flex, which otherwise beats the
+       browser's own [hidden] { display: none } (an attribute selector
+       has the same specificity as a class, so declaration order alone
+       would decide it, and this rule needs to always win). */
+    display: none;
+  }
   .menu-dropdown button,
   .menu-dropdown a {
     text-align: left;
@@ -191,7 +198,7 @@
 <body>
 <div class="wrap">
   <div class="sim-banner">
-    🧪 Modo de testes — dinheiro simulado, para você aprender e testar estratégias sem risco.
+    🧪 Modo de teste
   </div>
   <div class="ticker-wrap">
     <span class="ticker-label">🧪 Monitorando agora (simulado):</span>
@@ -581,14 +588,17 @@
     }
   }
 
+  const SUGGESTIONS_SHOWN = 5;
+
   async function refreshSuggestions() {
     const list = document.getElementById("suggestions-list");
     try {
-      const suggestions = await api("/api/trade-suggestions?status=PENDING&limit=20");
-      if (!suggestions.length) {
+      const all = await api("/api/trade-suggestions?status=PENDING&limit=100");
+      if (!all.length) {
         list.innerHTML = '<li class="hint">Nenhuma sugestão pendente no momento.</li>';
         return;
       }
+      const suggestions = all.slice(0, SUGGESTIONS_SHOWN);
       list.innerHTML = suggestions
         .map(
           (s) =>
@@ -600,6 +610,9 @@
             "</span></li>"
         )
         .join("");
+      if (all.length > SUGGESTIONS_SHOWN) {
+        list.innerHTML += '<li class="hint">+ ' + (all.length - SUGGESTIONS_SHOWN) + " outra(s) pendente(s).</li>";
+      }
       list.querySelectorAll("button[data-suggestion-id]").forEach((btn) => {
         btn.addEventListener("click", () => updateSuggestionStatus(btn.dataset.suggestionId, btn.dataset.action));
       });
@@ -807,6 +820,7 @@
     try {
       const opportunities = await api("/api/opportunities?limit=15");
       if (!opportunities.length) {
+        track.style.animation = "none";
         track.innerHTML = '<span class="ticker-item">Nenhuma atividade monitorada ainda — ligue a operação automática ou rode um ciclo manual.</span>';
         return;
       }
@@ -816,8 +830,10 @@
         return '<span class="ticker-item ' + cls + '">' + escapeHtml(description) + "</span>";
       });
       // Duplicated once so the CSS animation (translateX to -50%) loops seamlessly.
+      track.style.animation = "";
       track.innerHTML = items.join("") + items.join("");
     } catch (err) {
+      track.style.animation = "none";
       track.innerHTML = '<span class="ticker-item">' + escapeHtml(messageFor(err)) + "</span>";
     }
   }

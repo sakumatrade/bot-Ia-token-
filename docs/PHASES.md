@@ -1164,6 +1164,51 @@ API. 8 new backend tests cover the no-wallet/no-suggestion case, the
 IGNORE-decision/no-suggestion case, auth on all three endpoints, the
 full add-wallet→run-cycle→dismiss flow, and the status filter.
 
+## Post-Phase-17 addition: a real CSS bug, found by actually loading the page
+
+The user said the app was "ruim, tem muitos erros" (bad, has many
+errors) and asked for it to be "bonito e fácil de usar" (pretty and easy
+to use), plus a shorter banner. Rather than guess, this was the first
+time in the session a real browser actually loaded the dashboard:
+`playwright` (already available for this container per its Chromium
+install) opened it headless, and the very first screenshot showed the
+☰ Menu dropdown rendered *open* on page load, before anything had been
+clicked.
+
+The cause: `.menu-dropdown` (added two entries ago) sets `display:
+flex` directly, and a plain `hidden` HTML attribute relies on the
+browser's own low-specificity `[hidden] { display: none }` rule to work
+— a class selector's `display: flex` beats it outright, so the dropdown
+was visually open at all times regardless of the `hidden` attribute
+JavaScript was correctly toggling underneath. Confirmed with
+`getComputedStyle`: `hidden` was `true`, computed `display` was `flex`.
+This is exactly the kind of bug static review (and even running the
+JS through `node --check`, which found nothing, since the JS itself was
+correct) cannot catch — it only showed up by actually rendering the
+page. Fixed with `.menu-dropdown[hidden] { display: none; }`, which has
+higher specificity and always wins; verified the same computed-style
+check now reports `none`.
+
+While a real browser was open anyway, two more things got checked and
+fixed: the monitoring ticker's CSS scroll animation was already
+mid-cycle by the time a screenshot was taken, clipping its own text
+mid-word when there was only a single static placeholder message to
+show (not a bug exactly, just distracting for a message that has
+nothing to scroll) — now suppressed (`animation: none`) whenever the
+ticker has no real content to loop through. And the "Sugestões de
+operação" card, once real suggestions existed, turned into a wall of
+near-identical paragraphs; capped display to 5 with a "+N outras
+pendentes" note rather than rendering all of them inline.
+
+The banner itself shrank from a full sentence to "🧪 Modo de teste" on
+both the browser dashboard and the native app, per the user's explicit
+ask — still honest, just not explaining itself every time it's seen.
+
+Verified end-to-end with the same headless browser: zero JavaScript
+console errors, zero failed network requests, correct show/hide
+behavior clicking through every single menu entry, before and after
+the fix.
+
 ## macOS app — what the user needs to do on their own Mac
 
 Compiling in CI proves the code is correct; it does not give you a
