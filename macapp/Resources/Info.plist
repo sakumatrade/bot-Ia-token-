@@ -7,9 +7,9 @@
     <key>CFBundleIdentifier</key>
     <string>com.sakumatrade.brokersakuma</string>
     <key>CFBundleName</key>
-    <string>Broker Sakuma</string>
+    <string>DominusBot</string>
     <key>CFBundleDisplayName</key>
-    <string>Broker Sakuma</string>
+    <string>DominusBot</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
@@ -29,7 +29,7 @@
       (web/static/index.html) bring this app to the front via
       brokersakuma://open, handled in BrokerSakumaApp.swift's onOpenURL.
       Only registered with Launch Services once this app has actually
-      been opened as a real "Broker Sakuma.app" bundle (scripts/build_mac.sh)
+      been opened as a real "DominusBot.app" bundle (scripts/build_mac.sh)
       at least once — a plain `swift run` process has no bundle for macOS
       to register the scheme against.
     -->

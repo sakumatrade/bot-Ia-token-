@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Broker Sakuma - a single interactive menu that wraps every other script
+# DominusBot - a single interactive menu that wraps every other script
 # in this folder (update.sh, start_server.sh, activate_bot.sh) plus a few
 # curl calls, so there is exactly one command to remember instead of
 # several: this one. Runs the server in the background so the same
@@ -193,7 +193,7 @@ toggle_auto_update() {
 
 while true; do
   echo ""
-  echo "===== Broker Sakuma ====="
+  echo "===== DominusBot ====="
   echo "1) Iniciar/verificar o servidor"
   echo "2) Atualizar o sistema (buscar as ultimas novidades)"
   echo "3) Criar e ativar um novo bot (\$5 simulados)"

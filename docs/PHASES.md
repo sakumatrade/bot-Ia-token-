@@ -1369,6 +1369,71 @@ keys' read access, the read-only key's write rejection on two different
 endpoints, `whoami` reporting correctly for each key, and an unset
 read-only key config rejecting anything but the main key).
 
+## Rebrand, phase 1 of N: "Broker Sakuma" → "DominusBot" (visual only)
+
+The user asked to evolve the product into "DominusBot — AI Multi-Agent
+Trading & Research Platform," with an explicit, detailed set of rules:
+keep the existing codebase and data, work in phases, audit before
+touching anything, and never rename an internal identifier (package
+name, env var, DB schema, API route) without first checking whether
+that's actually safe. This entry is Phase 3 of that plan (visual
+migration) — Phases 1-2 (audit, checkpoint) were done by reviewing the
+existing codebase directly rather than as separate artifacts, since it
+was already well understood from having built nearly all of it this
+session.
+
+**Audit result, in short: `grep -rl "Sakuma"` found >100 hits across
+~28 files.** Classified into two buckets:
+
+- **Renamed now (pure display text, zero functional risk):** the
+  dashboard's `<title>`/`<h1>` (plus a new "AI Multi-Agent Trading &
+  Research Platform" subtitle), its user-facing error strings, the
+  macOS app's window/menu-bar titles and header text, `Info.plist`'s
+  `CFBundleName`/`CFBundleDisplayName` (what Finder/Dock actually show),
+  the packaging scripts' `APP_NAME`/DMG volume name/output filename
+  (`build_mac.sh`, `package_dmg.sh`, `notarize.sh`), the interactive
+  menu's banner (`broker_sakuma.sh`), the Safari extension's
+  `manifest.json`/`popup.html`/`options.html`/error strings, the
+  Telegram daily report's header line (→ "DominusBot — Dominus Daily
+  Report", the one nomenclature-table rename applied verbatim since it's
+  a literal user-facing message), the FastAPI app's OpenAPI `title`, and
+  every README/doc title and docstring that was pure prose.
+- **Deliberately left alone (internal identifiers, per the user's own
+  compatibility rules):** the Python package path (`broker_sakuma/`,
+  every import, `pyproject.toml`'s package name), the Swift module/target
+  name (`BrokerSakuma`, every `import`/`@testable import`), the
+  `BROKER_SAKUMA_` environment variable prefix (`Settings.env_prefix`
+  and every script/doc that references it), `CFBundleExecutable`
+  (`BrokerSakuma` — must match the SPM target's actual build output) and
+  `CFBundleIdentifier` (`com.sakumatrade.brokersakuma` — macOS treats
+  this as the app's identity for permissions/notarization/preferences),
+  database table/column names (none ever referenced "sakuma" — zero risk
+  there regardless), API route paths (same), and test fixture data that
+  merely used the old name as an arbitrary sample string. Renaming any
+  of these would touch hundreds of call sites for zero user-visible
+  benefit, or actively break existing installs/env configs/signing —
+  exactly what the user's own rules said to avoid.
+
+Explicitly **not** done in this pass, on purpose, because they're their
+own later phases per the user's own plan: the "Dominus Core / Dominus
+Risk / Dominus Lab / Dominus AI / Dominus Network / Dominus Treasury"
+module renames (those map onto existing engines' *concepts*, e.g. Mother
+Bot → Dominus Core as a default bot name, RiskEngine → "Dominus Risk" as
+a UI label — each deserves its own scoped pass so a rename doesn't get
+tangled with an actual behavior change), and any dashboard redesign
+beyond the name/tagline swap.
+
+Verified: `grep` for `Broker Sakuma`/`BROKER SAKUMA` now returns zero
+hits outside the two allowed categories above (env var prefix mentions,
+and cross-references to the real, unrenamed `macapp/Sources/BrokerSakuma/`
+path). `Info.plist` re-validated with `plistlib.load()`. Dashboard HTML's
+`<div>` balance and embedded JS syntax re-checked. Loaded the real
+dashboard in a headless browser: tab title and header now read
+"DominusBot" with the new tagline underneath, everything else (Day
+Trade panel, metrics, menu) works exactly as before. 244 backend tests
+still pass unchanged — this phase touched no application logic, only
+strings.
+
 ## macOS app — what the user needs to do on their own Mac
 
 Compiling in CI proves the code is correct; it does not give you a

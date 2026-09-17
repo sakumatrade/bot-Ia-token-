@@ -1,11 +1,11 @@
 {
   "manifest_version": 3,
-  "name": "Broker Sakuma",
+  "name": "DominusBot",
   "version": "0.1.0",
-  "description": "View Broker Sakuma status, bots, opportunities and research. Read-only: never touches wallets, private keys, or blockchain RPCs.",
+  "description": "View DominusBot status, bots, opportunities and research. Read-only: never touches wallets, private keys, or blockchain RPCs.",
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Broker Sakuma"
+    "default_title": "DominusBot"
   },
   "background": {
     "service_worker": "dist/background.js",

@@ -1,4 +1,4 @@
-"""FastAPI application factory for the Broker Sakuma Local API."""
+"""FastAPI application factory for the DominusBot Local API."""
 
 from __future__ import annotations
 
@@ -89,7 +89,7 @@ async def _lifespan(app: FastAPI):
 
 def create_app(settings: Settings | None = None, create_tables: bool = True) -> FastAPI:
     settings = settings or Settings()
-    app = FastAPI(title="Broker Sakuma Local API", version="0.1.0", lifespan=_lifespan)
+    app = FastAPI(title="DominusBot Local API", version="0.1.0", lifespan=_lifespan)
 
     engine = make_engine(settings.database.url, echo=settings.database.echo)
     if create_tables:

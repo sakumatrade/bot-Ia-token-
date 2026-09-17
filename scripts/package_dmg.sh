@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Packages "Broker Sakuma.app" into BrokerSakuma.dmg with the standard
+# Packages "DominusBot.app" into DominusBot.dmg with the standard
 # drag-to-Applications layout (spec section 49: download -> open -> drag
 # to Applications -> open).
 #
@@ -8,9 +8,9 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_DIR="$ROOT_DIR/build"
-APP_NAME="Broker Sakuma"
+APP_NAME="DominusBot"
 APP_BUNDLE="$BUILD_DIR/$APP_NAME.app"
-DMG_PATH="$BUILD_DIR/BrokerSakuma.dmg"
+DMG_PATH="$BUILD_DIR/DominusBot.dmg"
 STAGING_DIR="$BUILD_DIR/dmg-staging"
 
 if [ ! -d "$APP_BUNDLE" ]; then
@@ -26,7 +26,7 @@ ln -s /Applications "$STAGING_DIR/Applications"
 
 echo "==> Creating $DMG_PATH"
 rm -f "$DMG_PATH"
-hdiutil create -volname "Broker Sakuma" \
+hdiutil create -volname "DominusBot" \
   -srcfolder "$STAGING_DIR" \
   -ov -format UDZO \
   "$DMG_PATH"

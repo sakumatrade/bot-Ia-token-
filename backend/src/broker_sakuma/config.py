@@ -1,4 +1,4 @@
-"""Central, explicit configuration for Broker Sakuma.
+"""Central, explicit configuration for DominusBot.
 
 Every financially meaningful policy (risk limits, loan exposure, settlement
 splits, growth ladders) lives here as an explicit, documented, overridable

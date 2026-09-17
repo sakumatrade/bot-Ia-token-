@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Signs "Broker Sakuma.app", packages it into a DMG, signs the DMG, and
+# Signs "DominusBot.app", packages it into a DMG, signs the DMG, and
 # submits it to Apple for notarization (spec section 49).
 #
 # Must run on macOS with:
@@ -19,9 +19,9 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_DIR="$ROOT_DIR/build"
-APP_NAME="Broker Sakuma"
+APP_NAME="DominusBot"
 APP_BUNDLE="$BUILD_DIR/$APP_NAME.app"
-DMG_PATH="$BUILD_DIR/BrokerSakuma.dmg"
+DMG_PATH="$BUILD_DIR/DominusBot.dmg"
 
 : "${APPLE_DEVELOPER_ID_APPLICATION:?set APPLE_DEVELOPER_ID_APPLICATION}"
 : "${APPLE_ID:?set APPLE_ID}"

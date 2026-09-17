@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "broker-sakuma"
 version = "0.1.0"
-description = "Broker Sakuma - research, simulation and strategy-management backend"
+description = "DominusBot - AI Multi-Agent Trading & Research Platform backend"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115",

@@ -1,5 +1,5 @@
 /**
- * Talks only to the Broker Sakuma Local API. This is the sole network
+ * Talks only to the DominusBot Local API. This is the sole network
  * boundary in the whole extension — nothing here (or anywhere else in
  * this codebase) calls a blockchain RPC, a DEX API, or any endpoint
  * outside what `manifest.json`'s `host_permissions` explicitly allow
@@ -50,14 +50,14 @@ async function request<T>(settings: ExtensionSettings, path: string): Promise<T>
       headers: { "X-API-Key": settings.apiKey },
     });
   } catch {
-    throw new ApiError("Não foi possível conectar ao Broker Sakuma. O backend está rodando?");
+    throw new ApiError("Não foi possível conectar ao DominusBot. O backend está rodando?");
   }
 
   if (response.status === 401) {
     throw new ApiError("Chave de API inválida.", 401);
   }
   if (!response.ok) {
-    throw new ApiError("O Broker Sakuma não conseguiu consultar a informação agora.", response.status);
+    throw new ApiError("O DominusBot não conseguiu consultar a informação agora.", response.status);
   }
 
   return (await response.json()) as T;

@@ -14,7 +14,7 @@ struct MenuBarContentView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("Broker Sakuma").font(.headline)
+                Text("DominusBot").font(.headline)
                 Spacer()
                 StatusBadge(state: appState.dashboard?.systemState ?? .unknown, displayMode: .simple)
             }
@@ -32,7 +32,7 @@ struct MenuBarContentView: View {
             // Grouped so this VStack's own child count stays well under
             // ViewBuilder's per-block limit as items get added here.
             Group {
-                Button("Abrir Broker Sakuma") {
+                Button("Abrir DominusBot") {
                     openWindow(id: "dashboard")
                 }
 

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Broker Sakuma</title>
+<title>DominusBot</title>
 <style>
   :root {
     --bg: #f5f5f7;
@@ -274,7 +274,10 @@
   </div>
   <header>
     <div class="title-row">
-      <h1>Broker Sakuma</h1>
+      <div>
+        <h1>DominusBot</h1>
+        <div class="hint" style="margin-top: -6px;">AI Multi-Agent Trading &amp; Research Platform</div>
+      </div>
       <div class="menu-wrap">
         <button id="menu-toggle">☰ Menu</button>
         <div id="menu-dropdown" class="menu-dropdown" hidden>
@@ -505,11 +508,11 @@
       case "NO_KEY":
         return "Configure a chave da API acima em \"Configurações da conexão\".";
       case "NOT_CONNECTED":
-        return "O Broker Sakuma não conseguiu se conectar ao backend agora. Ele está rodando?";
+        return "O DominusBot não conseguiu se conectar ao backend agora. Ele está rodando?";
       case "BAD_KEY":
         return "Chave de API inválida.";
       default:
-        return "O Broker Sakuma não conseguiu consultar a informação agora.";
+        return "O DominusBot não conseguiu consultar a informação agora.";
     }
   }
 
@@ -1122,7 +1125,7 @@
       // this note covers the one real precondition instead of guessing.
       setTimeout(() => {
         if (!document.hidden) {
-          console.info("Se nada abriu, o aplicativo do Mac precisa ter sido aberto pelo menos uma vez como Broker Sakuma.app (scripts/build_mac.sh), não apenas via 'swift run'.");
+          console.info("Se nada abriu, o aplicativo do Mac precisa ter sido aberto pelo menos uma vez como DominusBot.app (scripts/build_mac.sh), não apenas via 'swift run'.");
         }
       }, 800);
     });

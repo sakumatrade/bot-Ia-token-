@@ -2,7 +2,7 @@
   "name": "broker-sakuma-safari-extension",
   "version": "0.1.0",
   "private": true,
-  "description": "Broker Sakuma Safari Web Extension: read-only status/bots/opportunities/research view over the Local API. Never touches wallets, private keys, seed phrases, or blockchain RPCs directly.",
+  "description": "DominusBot Safari Web Extension: read-only status/bots/opportunities/research view over the Local API. Never touches wallets, private keys, seed phrases, or blockchain RPCs directly.",
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "node --test tests/structural.test.js"

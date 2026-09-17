@@ -1,4 +1,7 @@
-# Broker Sakuma
+# DominusBot
+
+**AI Multi-Agent Trading & Research Platform** (formerly "Broker Sakuma" —
+same project, same code, renamed; see `docs/PHASES.md` for the rebrand log).
 
 Research, simulation, strategy-management and (eventually, once explicitly
 approved) execution platform for crypto opportunities — starting with

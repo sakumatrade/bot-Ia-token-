@@ -301,7 +301,7 @@ def format_daily_report_text(report: DailyReport) -> str:
     """spec section 37's exact field list, in order."""
 
     return (
-        "Broker Sakuma — Daily Report\n"
+        "DominusBot — Dominus Daily Report\n"
         f"Mother Capital: ${report.mother_capital_usd:.2f}\n"
         f"Operational Capital: ${report.operational_capital_usd:.2f}\n"
         f"Reserve: ${report.reserve_usd:.2f}\n"

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds "Broker Sakuma.app" from the macapp/ Swift package.
+# Builds "DominusBot.app" from the macapp/ Swift package.
 #
 # Must run on macOS with Xcode/the Swift toolchain installed. This repo's
 # Linux CI (.github/workflows/macos-build.yml) only verifies that
@@ -11,7 +11,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MACAPP_DIR="$ROOT_DIR/macapp"
 BUILD_DIR="$ROOT_DIR/build"
-APP_NAME="Broker Sakuma"
+APP_NAME="DominusBot"
 EXECUTABLE_NAME="BrokerSakuma"
 APP_BUNDLE="$BUILD_DIR/$APP_NAME.app"
 

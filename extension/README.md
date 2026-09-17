@@ -1,4 +1,4 @@
-# Broker Sakuma — Safari Web Extension
+# DominusBot — Safari Web Extension
 
 Read-only view of status, bots, opportunities and research, talking only
 to the Local API. It never handles a private key, seed phrase, or

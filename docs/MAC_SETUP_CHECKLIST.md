@@ -1,4 +1,4 @@
-# Checklist: rodando o Broker Sakuma no seu Mac
+# Checklist: rodando o DominusBot no seu Mac
 
 Tudo que foi construído (backend Python, app SwiftUI, extensão Safari) foi
 escrito e testado neste ambiente Linux até onde deu — Swift via GitHub
@@ -50,11 +50,11 @@ open Package.swift    # abre no Xcode como Swift Package
 ## 3. Empacotamento (.app → .dmg)
 
 ```bash
-scripts/build_mac.sh     # gera build/Broker Sakuma.app
+scripts/build_mac.sh     # gera build/DominusBot.app
 scripts/package_dmg.sh   # gera build/BrokerSakuma.dmg
 ```
 
-- [ ] `build/Broker Sakuma.app` abre (clique direito → Abrir, por não
+- [ ] `build/DominusBot.app` abre (clique direito → Abrir, por não
       estar assinado ainda)
 - [ ] `build/BrokerSakuma.dmg` monta e mostra o layout arrastar-para-Applications
 - [ ] Se algo quebrar aqui, é a primeira vez que esses scripts rodam de
@@ -86,7 +86,7 @@ xcrun safari-web-extension-converter .      # gera projeto Xcode wrapper
 ```
 
 - [ ] Projeto abre no Xcode e roda
-- [ ] Safari → Preferências → Extensões → habilitar "Broker Sakuma"
+- [ ] Safari → Preferências → Extensões → habilitar "DominusBot"
 - [ ] Popup mostra dados reais (configure a chave da API nas Configurações
       da extensão primeiro)
 

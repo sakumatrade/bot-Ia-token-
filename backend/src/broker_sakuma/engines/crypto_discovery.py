@@ -1,7 +1,7 @@
 """CryptoDiscoveryEngine, RevenueDiscoveryEngine, CryptoResearchLab
 (spec sections 23, 25).
 
-The Broker Sakuma isn't limited to Pump.fun: this is where DEX, DeFi,
+DominusBot isn't limited to Pump.fun: this is where DEX, DeFi,
 arbitrage, staking, lending, liquidity pools, launchpads, yield,
 infrastructure and cross-chain opportunities get logged. Research only —
 registering an opportunity never executes anything.

@@ -47,7 +47,10 @@ struct DashboardView: View {
     private var header: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Broker Sakuma").font(.largeTitle.bold())
+                Text("DominusBot").font(.largeTitle.bold())
+                Text("AI Multi-Agent Trading & Research Platform")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 StatusBadge(state: appState.dashboard?.systemState ?? .unknown, displayMode: appState.displayMode)
             }
             Spacer()

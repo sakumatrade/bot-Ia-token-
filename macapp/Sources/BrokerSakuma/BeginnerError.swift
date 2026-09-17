@@ -25,17 +25,17 @@ enum BeginnerMessage {
         switch error {
         case APIError.notConnected:
             return Presentation(
-                headline: "O Broker Sakuma não conseguiu se conectar ao sistema agora.",
+                headline: "O DominusBot não conseguiu se conectar ao sistema agora.",
                 technicalDetails: "notConnected: nenhuma resposta da API local (verifique se o backend está rodando)."
             )
         case APIError.serverError(let statusCode):
             return Presentation(
-                headline: "O Broker Sakuma não conseguiu consultar a informação agora.",
+                headline: "O DominusBot não conseguiu consultar a informação agora.",
                 technicalDetails: "HTTP \(statusCode)"
             )
         case APIError.decodingFailed:
             return Presentation(
-                headline: "O Broker Sakuma recebeu uma resposta que não entendeu.",
+                headline: "O DominusBot recebeu uma resposta que não entendeu.",
                 technicalDetails: "decodingFailed: o formato da resposta não bateu com o esperado."
             )
         case APIError.unauthorized:
