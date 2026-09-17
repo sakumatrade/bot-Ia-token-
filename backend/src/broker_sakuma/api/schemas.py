@@ -220,6 +220,23 @@ class UpdateTradeSuggestionStatusRequest(BaseModel):
     status: str
 
 
+class GrowthSuggestionSummary(BaseModel):
+    """A nudge that a liquidity bucket has enough real (simulated) round
+    trips with a clearly positive average to be worth replicating with a
+    new bot — see engines/pattern_learning.py. This never creates a bot
+    itself; "acting on it" means the user clicking "Criar bot", the exact
+    same explicit action the dashboard's own "Criar bot" card requires."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    liquidity_bucket_tag: str
+    samples_count: int
+    average_pnl_usd: float
+    status: str
+    created_at: datetime
+
+
 class GrowthResponse(BaseModel):
     max_bots: int
     max_generations: int

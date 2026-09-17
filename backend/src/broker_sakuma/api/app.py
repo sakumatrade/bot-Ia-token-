@@ -13,6 +13,7 @@ from broker_sakuma.adapters.pumpfun.mock_provider import MockPumpFunProvider
 from broker_sakuma.adapters.pumpfun.synthetic_launch_generator import SyntheticLaunchGenerator
 from broker_sakuma.api.routes import bots as bots_routes
 from broker_sakuma.api.routes import dashboard as dashboard_routes
+from broker_sakuma.api.routes import growth_suggestions as growth_suggestions_routes
 from broker_sakuma.api.routes import misc as misc_routes
 from broker_sakuma.api.routes import system as system_routes
 from broker_sakuma.api.routes import trade_suggestions as trade_suggestions_routes
@@ -112,6 +113,7 @@ def create_app(settings: Settings | None = None, create_tables: bool = True) -> 
 
     app.include_router(dashboard_routes.router, prefix="/api")
     app.include_router(bots_routes.router, prefix="/api")
+    app.include_router(growth_suggestions_routes.router, prefix="/api")
     app.include_router(misc_routes.router, prefix="/api")
     app.include_router(system_routes.router, prefix="/api")
     app.include_router(trade_suggestions_routes.router, prefix="/api")

@@ -178,6 +178,7 @@ class AutonomousTradingCycle:
             result.trades_executed += 1
             if sell.trade is not None:
                 self.learner.record_outcome(bot.id, liquidity_usd, sell.trade.simulated_pnl_usd)
+                self.learner.check_growth_suggestion(liquidity_usd)
             if sell.bot_died:
                 result.bots_died.append(bot.id)
                 self._record_post_mortem(bot, decision, entry_price=entry_price, exit_price=exit_price, liquidity_usd=liquidity_usd)

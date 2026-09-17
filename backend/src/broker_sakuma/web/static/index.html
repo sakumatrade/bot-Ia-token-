@@ -217,6 +217,17 @@
     0%, 100% { opacity: 1; }
     50% { opacity: 0.35; }
   }
+  .growth-banner {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid var(--green);
+    background: rgba(52, 199, 89, 0.12);
+    font-size: 13px;
+  }
 </style>
 </head>
 <body>
@@ -271,6 +282,7 @@
     <div id="daytrade-chart-container" style="margin-top: 12px;">
       <p class="hint">Ainda não há operações simuladas suficientes para o gráfico.</p>
     </div>
+    <div id="growth-suggestions-container"></div>
     <details style="margin-top: 10px;">
       <summary>Configurações avançadas</summary>
       <div class="settings-row" style="margin-top: 8px;">
@@ -801,6 +813,67 @@
     document.getElementById("chart-bot-select").addEventListener("change", refreshChart);
   }
 
+  function liquidityRangeLabel(tag) {
+    // "pattern:liquidity:1000-2000" -> "$1,000 - $2,000"; the "-plus"
+    // suffix (open-ended top bucket) is shown without an upper bound.
+    const parts = tag.replace("pattern:liquidity:", "").split("-");
+    const low = Number(parts[0]).toLocaleString("pt-BR");
+    if (parts[1] === "plus") return `acima de $${low}`;
+    const high = Number(parts[1]).toLocaleString("pt-BR");
+    return `$${low} - $${high}`;
+  }
+
+  async function actOnGrowthSuggestion(id, action) {
+    try {
+      if (action === "create-bot") {
+        const son = await createAndActivateBot();
+        await api("/api/growth-suggestions/" + id + "/mark-bot-created", { method: "POST" });
+        alert(`${son.name} criado e ativado com $5 simulados a partir do padrão aprendido!`);
+      } else {
+        await api("/api/growth-suggestions/" + id + "/dismiss", { method: "POST" });
+      }
+      await refreshGrowthSuggestions();
+      await refresh();
+    } catch (err) {
+      alert(messageFor(err));
+    }
+  }
+
+  async function refreshGrowthSuggestions() {
+    const container = document.getElementById("growth-suggestions-container");
+    try {
+      const suggestions = await api("/api/growth-suggestions?status=PENDING&limit=3");
+      if (!suggestions.length) {
+        container.innerHTML = "";
+        return;
+      }
+      container.innerHTML = suggestions
+        .map(
+          (s) =>
+            '<div class="growth-banner">' +
+            "<span>🌱 O bot aprendeu um padrão lucrativo em lançamentos simulados com liquidez " +
+            escapeHtml(liquidityRangeLabel(s.liquidity_bucket_tag)) +
+            " (média de " +
+            fmtUsd(s.average_pnl_usd) +
+            " por operação, em " +
+            s.samples_count +
+            " operações simuladas). Quer criar um novo bot para aproveitar isso?</span>" +
+            '<span class="actions" style="margin-top: 0;">' +
+            '<button data-suggestion-id="' + escapeHtml(s.id) + '" data-action="create-bot" class="primary">Criar bot</button>' +
+            '<button data-suggestion-id="' + escapeHtml(s.id) + '" data-action="dismiss">Dispensar</button>' +
+            "</span></div>"
+        )
+        .join("");
+      container.querySelectorAll("button[data-suggestion-id]").forEach((btn) => {
+        btn.addEventListener("click", () => actOnGrowthSuggestion(btn.dataset.suggestionId, btn.dataset.action));
+      });
+    } catch (err) {
+      // Best-effort: a failed lookup here shouldn't block the rest of the
+      // Day Trade panel from rendering.
+      container.innerHTML = "";
+    }
+  }
+
   async function refreshDaytradeChart() {
     try {
       const trades = await api("/api/trades?limit=1000");
@@ -837,6 +910,27 @@
     });
   }
 
+  // Shared by the "Criar bot" card and the growth-suggestion banner below -
+  // both end up doing the exact same three-step activation
+  // (check/create Mother, spawn Son, activate with the $5 simulated
+  // thesis) that scripts/activate_bot.sh does from the terminal.
+  async function createAndActivateBot(name, motherCapital) {
+    let bots = await api("/api/bots");
+    let mother = bots.find((b) => !b.parent_id);
+
+    if (!mother) {
+      mother = await api("/api/bots/mother", {
+        method: "POST",
+        body: JSON.stringify({ name: "Mother Bot", initial_capital_usd: motherCapital || 1000 }),
+      });
+    }
+
+    const sonBody = name ? { parent_id: mother.id, name } : { parent_id: mother.id };
+    const son = await api("/api/bots/sons", { method: "POST", body: JSON.stringify(sonBody) });
+    await api(`/api/bots/${son.id}/activate`, { method: "POST" });
+    return son;
+  }
+
   function initCreateBotForm() {
     document.getElementById("create-bot-form").addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -848,20 +942,7 @@
       button.disabled = true;
       status.textContent = "Criando…";
       try {
-        let bots = await api("/api/bots");
-        let mother = bots.find((b) => !b.parent_id);
-
-        if (!mother) {
-          mother = await api("/api/bots/mother", {
-            method: "POST",
-            body: JSON.stringify({ name: "Mother Bot", initial_capital_usd: motherCapital }),
-          });
-        }
-
-        const sonBody = name ? { parent_id: mother.id, name } : { parent_id: mother.id };
-        const son = await api("/api/bots/sons", { method: "POST", body: JSON.stringify(sonBody) });
-        await api(`/api/bots/${son.id}/activate`, { method: "POST" });
-
+        const son = await createAndActivateBot(name, motherCapital);
         document.getElementById("create-bot-form").reset();
         document.getElementById("mother-initial-capital").value = 1000;
         status.textContent = `${son.name} criado e ativado com $5 simulados!`;
@@ -910,6 +991,7 @@
     await refreshWallets();
     await refreshDaytradeStatus();
     await refreshDaytradeChart();
+    await refreshGrowthSuggestions();
     await refreshChartBotOptions();
     await refreshChart();
     await refreshTicker();

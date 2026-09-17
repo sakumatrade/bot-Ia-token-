@@ -115,6 +115,17 @@ class TradeSuggestionStatus(str, enum.Enum):
     DONE_MANUALLY = "DONE_MANUALLY"
 
 
+class GrowthSuggestionStatus(str, enum.Enum):
+    """A growth suggestion never spawns a bot by itself (spec section 63:
+    growth is always an explicit, human-initiated act, same as the $5
+    rule). PENDING is the only status the system sets itself; the other
+    two only ever come from the user acting on it themselves."""
+
+    PENDING = "PENDING"
+    DISMISSED = "DISMISSED"
+    BOT_CREATED = "BOT_CREATED"
+
+
 class WalletType(str, enum.Enum):
     """Wallet roles (spec section 32)."""
 

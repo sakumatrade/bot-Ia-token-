@@ -21,6 +21,7 @@ from broker_sakuma.core.enums import (
     BotLifecycleEventType,
     BotState,
     ExecutionMode,
+    GrowthSuggestionStatus,
     InfoClassification,
     InterestModel,
     LoanStatus,
@@ -441,3 +442,20 @@ class TradeSuggestion(Base, IdMixin, TimestampMixin):
     reasoning: Mapped[str] = mapped_column(Text)
     risk_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     status: Mapped[TradeSuggestionStatus] = mapped_column(String(16), default=TradeSuggestionStatus.PENDING)
+
+
+class GrowthSuggestion(Base, IdMixin, TimestampMixin):
+    """A nudge that a liquidity bucket has accumulated enough real
+    (simulated) round trips to show a clear positive average — see
+    ``engines/pattern_learning.py``'s ``confidence_multiplier``, which is
+    the same threshold this reuses. This never spawns a bot itself (spec
+    section 63: growth is always an explicit human act, same as the $5
+    rule) — it only ever proposes that the user create one, exactly the
+    same way the "Criar bot" card already lets them."""
+
+    __tablename__ = "growth_suggestions"
+
+    liquidity_bucket_tag: Mapped[str] = mapped_column(String(64))
+    samples_count: Mapped[int] = mapped_column(Integer)
+    average_pnl_usd: Mapped[float] = mapped_column(Float)
+    status: Mapped[GrowthSuggestionStatus] = mapped_column(String(16), default=GrowthSuggestionStatus.PENDING)

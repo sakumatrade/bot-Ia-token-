@@ -21,7 +21,10 @@ was already going to be allowed, never bypass a limit.
 
 from __future__ import annotations
 
-from broker_sakuma.core.enums import InfoClassification
+from sqlalchemy import select
+
+from broker_sakuma.core.enums import GrowthSuggestionStatus, InfoClassification
+from broker_sakuma.db import models
 from broker_sakuma.engines.collective_memory import CollectiveMemoryStore
 
 _LIQUIDITY_BUCKETS_USD = [1000.0, 2000.0, 3500.0, 5000.0]
@@ -45,6 +48,7 @@ def liquidity_bucket_tag(liquidity_usd: float) -> str:
 
 class PatternLearner:
     def __init__(self, session, min_samples: int = 5):
+        self.session = session
         self.memory = CollectiveMemoryStore(session)
         self.min_samples = min_samples
 
@@ -58,6 +62,10 @@ class PatternLearner:
             tags=[tag, "pattern:round_trip_pnl"],
         )
 
+    def _samples_for(self, tag: str) -> list[float]:
+        entries = self.memory.find_by_tags([tag])
+        return [float(e.content) for e in entries if e.content is not None]
+
     def confidence_multiplier(self, liquidity_usd: float) -> float:
         """Neutral (1.0) until ``min_samples`` real outcomes exist for
         this bucket — one or two results are never treated as a pattern
@@ -70,10 +78,44 @@ class PatternLearner:
         """
 
         tag = liquidity_bucket_tag(liquidity_usd)
-        entries = self.memory.find_by_tags([tag])
-        samples = [float(e.content) for e in entries if e.content is not None]
+        samples = self._samples_for(tag)
         if len(samples) < self.min_samples:
             return 1.0
 
         average = sum(samples) / len(samples)
         return 1.0 + max(-0.5, min(0.5, average))
+
+    def check_growth_suggestion(self, liquidity_usd: float) -> models.GrowthSuggestion | None:
+        """Once a liquidity bucket has enough real (simulated) round trips
+        with a clearly positive average, record a ``GrowthSuggestion`` for
+        the user to see on the dashboard — this never spawns a bot itself
+        (spec section 63: growth is always an explicit human act). Only
+        ever suggested once per bucket: if one already exists for this tag
+        (pending, dismissed, or acted on), this does nothing, so the user
+        is never nagged twice about the same pattern.
+        """
+
+        tag = liquidity_bucket_tag(liquidity_usd)
+        samples = self._samples_for(tag)
+        if len(samples) < self.min_samples:
+            return None
+
+        average = sum(samples) / len(samples)
+        if average <= 0:
+            return None
+
+        already_exists = self.session.execute(
+            select(models.GrowthSuggestion.id).where(models.GrowthSuggestion.liquidity_bucket_tag == tag)
+        ).first()
+        if already_exists is not None:
+            return None
+
+        suggestion = models.GrowthSuggestion(
+            liquidity_bucket_tag=tag,
+            samples_count=len(samples),
+            average_pnl_usd=average,
+            status=GrowthSuggestionStatus.PENDING,
+        )
+        self.session.add(suggestion)
+        self.session.commit()
+        return suggestion

@@ -1251,6 +1251,60 @@ and the aggregate chart rendered the actual trade line. Toggling the
 button by hand in the browser flipped it back correctly too. 228 backend
 tests still pass (this was a frontend-only change, no API changes).
 
+## Growth suggestions: "the bot learned something" surfaces as a one-click nudge, never an auto-spawn
+
+Follow-up to a two-part question: why doesn't the bot create other bots
+on its own, and — since `PatternLearner` already learns from outcomes —
+shouldn't it replicate what worked? Answered the first part directly (Son
+bots are only ever created by an explicit human act — `LineageEngine.spawn_son`
+exists but the autonomous loop never calls it, by design, mirroring the
+$5 rule's own "growth is never implicit" principle). Then built the
+second part as a suggestion, not an auto-spawn, keeping that same
+principle intact.
+
+`PatternLearner.confidence_multiplier` already tracks, per liquidity
+bucket, whether accumulated real (simulated) round trips average out
+positive once there are `min_samples` (5) of them. Added
+`check_growth_suggestion(liquidity_usd)`: once a bucket crosses that
+threshold with a positive average, it records one `GrowthSuggestion` row
+(new table, no migration) — and only ever one per bucket, checked by
+querying for an existing row with that bucket's tag before creating a
+new one, so a bucket that keeps performing well doesn't nag on every
+single cycle. `AutonomousTradingCycle._trade_one` calls this right after
+`record_outcome`, so it's checked on every completed round trip.
+
+`GET/POST /api/growth-suggestions{,/dismiss,/mark-bot-created}` mirror
+`trade_suggestions.py`'s existing shape exactly (list with a status
+filter, two POST endpoints that only ever change a status column) —
+`mark-bot-created` is purely the user's own bookkeeping, same as
+`trade-suggestions/mark-done`; neither endpoint creates anything.
+
+On the dashboard, the Day Trade card now shows a green banner the moment
+a suggestion is PENDING: "🌱 O bot aprendeu um padrão lucrativo em
+lançamentos simulados com liquidez $X - $Y (média de $Z por operação, em
+N operações simuladas). Quer criar um novo bot para aproveitar isso?"
+with **Criar bot** / **Dispensar** buttons. Refactored the "Criar bot"
+card's own three-step activation flow (check/create Mother, spawn Son,
+activate) into a shared `createAndActivateBot()` function so the banner's
+button reuses it verbatim instead of duplicating it — clicking it does
+the exact same thing the "Criar bot" card and `scripts/activate_bot.sh`
+already do, then marks the suggestion `BOT_CREATED` so the banner clears.
+
+Verified end-to-end with a real headless browser: since the synthetic
+price walk is randomized, seeded a bucket with 6 positive outcomes
+directly against the running server's own database (same code path
+`record_outcome`/`check_growth_suggestion` use, just invoked once instead
+of waiting on random cycles) to get a suggestion deterministically for
+the test, then drove the real UI — banner rendered with the correct
+liquidity range/average/sample count; clicking **Dispensar** cleared it
+and set `status=DISMISSED`; a second suggestion's **Criar bot** button
+created and activated a real new Son (showed up immediately in "O que o
+bot está fazendo"), showed the confirmation alert, cleared the banner,
+and set `status=BOT_CREATED`. 238 backend tests pass (10 new, covering
+the no-suggestion-below-threshold/negative-average cases, one-suggestion-
+per-bucket, bucket independence, and the three endpoints' auth/shape/404
+behavior).
+
 ## macOS app — what the user needs to do on their own Mac
 
 Compiling in CI proves the code is correct; it does not give you a
