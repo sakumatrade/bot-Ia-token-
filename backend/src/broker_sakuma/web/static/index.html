@@ -118,6 +118,33 @@
   }
   details summary { cursor: pointer; font-size: 13px; color: var(--muted); }
   .chart-svg { width: 100%; height: 180px; display: block; }
+  .title-row { display: flex; align-items: center; gap: 10px; }
+  .menu-wrap { position: relative; }
+  .menu-dropdown {
+    position: absolute;
+    top: 130%;
+    left: 0;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 6px;
+    min-width: 240px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .menu-dropdown button {
+    text-align: left;
+    border: none;
+    background: transparent;
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    width: 100%;
+  }
+  .menu-dropdown button:hover { background: var(--bg); }
   .sim-banner {
     background: var(--yellow);
     color: #1c1c1e;
@@ -136,11 +163,26 @@
     ⚠️ MODO SIMULAÇÃO — dinheiro fictício. Nada aqui move fundos reais nem toca em carteiras de verdade.
   </div>
   <header>
-    <h1>Broker Sakuma</h1>
+    <div class="title-row">
+      <h1>Broker Sakuma</h1>
+      <div class="menu-wrap">
+        <button id="menu-toggle">☰ Menu</button>
+        <div id="menu-dropdown" class="menu-dropdown" hidden>
+          <button data-target="card-settings" data-open-details="settings-details">Configurações da conexão</button>
+          <button data-target="content">Painel / status</button>
+          <button data-target="card-create-bot">Criar bot</button>
+          <button data-target="card-bots">O que o bot está fazendo</button>
+          <button data-target="card-auto-trading">Operação automática</button>
+          <button data-target="card-chart">Gráfico do bot</button>
+          <button data-target="card-alerts">Alertas</button>
+          <button data-target="card-wallets">Carteiras</button>
+        </div>
+      </div>
+    </div>
     <span id="status-badge" class="status-badge"><span class="dot" id="status-dot"></span><span id="status-text">Carregando…</span></span>
   </header>
 
-  <div class="card">
+  <div class="card" id="card-settings">
     <details id="settings-details">
       <summary>Configurações da conexão</summary>
       <div class="settings-row" style="margin-top: 10px;">
@@ -165,7 +207,7 @@
     <p class="hint">Conectando…</p>
   </div>
 
-  <div class="card">
+  <div class="card" id="card-create-bot">
     <strong>Criar bot</strong>
     <p class="hint">
       Cria (se ainda não existir) a Mother Bot com o capital simulado
@@ -185,12 +227,12 @@
     </form>
   </div>
 
-  <div class="card">
+  <div class="card" id="card-bots">
     <strong>O que o bot está fazendo</strong>
     <ul class="plain" id="bots-list"><li class="hint">—</li></ul>
   </div>
 
-  <div class="card">
+  <div class="card" id="card-auto-trading">
     <strong>Operação automática (simulada)</strong>
     <p class="hint">
       Quando ligada, todo bot ACTIVE observa e opera sozinho, sem precisar de
@@ -214,7 +256,7 @@
     </div>
   </div>
 
-  <div class="card">
+  <div class="card" id="card-chart">
     <strong>Gráfico do bot</strong>
     <div class="settings-row" style="margin-top: 8px;">
       <select id="chart-bot-select"><option value="">Selecione um bot…</option></select>
@@ -224,12 +266,12 @@
     </div>
   </div>
 
-  <div class="card">
+  <div class="card" id="card-alerts">
     <strong>Alertas</strong>
     <ul class="plain" id="alerts-list"><li class="hint">Nenhum alerta.</li></ul>
   </div>
 
-  <div class="card">
+  <div class="card" id="card-wallets">
     <strong>Carteiras (só visualização)</strong>
     <p class="hint">
       Cole aqui apenas o endereço público da sua carteira, para acompanhar o saldo.
@@ -702,11 +744,41 @@
     });
   }
 
+  function initMenu() {
+    const toggle = document.getElementById("menu-toggle");
+    const dropdown = document.getElementById("menu-dropdown");
+
+    toggle.addEventListener("click", (event) => {
+      event.stopPropagation();
+      dropdown.hidden = !dropdown.hidden;
+    });
+
+    document.addEventListener("click", (event) => {
+      if (!dropdown.hidden && !dropdown.contains(event.target) && event.target !== toggle) {
+        dropdown.hidden = true;
+      }
+    });
+
+    dropdown.querySelectorAll("button[data-target]").forEach((item) => {
+      item.addEventListener("click", () => {
+        const openDetailsId = item.dataset.openDetails;
+        if (openDetailsId) {
+          const details = document.getElementById(openDetailsId);
+          if (details) details.open = true;
+        }
+        const target = document.getElementById(item.dataset.target);
+        if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+        dropdown.hidden = true;
+      });
+    });
+  }
+
   initSettingsForm();
   initCreateBotForm();
   initAddWalletForm();
   initAutoTradingForm();
   initChart();
+  initMenu();
   refresh();
   setInterval(refresh, 5000);
 })();

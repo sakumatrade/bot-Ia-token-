@@ -1028,6 +1028,27 @@ new decoding unit tests in `DashboardModelsTests.swift`; real
 verification is GitHub Actions' `macos-build.yml` (`swift build`/`swift
 test` on a real macOS runner), checked after pushing this commit.
 
+## Post-Phase-17 addition: a "☰ Menu" button for the browser dashboard
+
+The user got lost trying to find "Configurações da conexão" — a real
+usability finding: as more cards were added to `web/static/index.html`
+over this session (chart, auto-trading, create-bot), that collapsible
+section drifted further from view and its `<summary>` line doesn't read
+as clickable at a glance. Rather than only re-explaining where to look,
+the actual fix: a **☰ Menu** button next to the page title that lists
+every section (Configurações da conexão, Painel/status, Criar bot, O que
+o bot está fazendo, Operação automática, Gráfico do bot, Alertas,
+Carteiras) and jumps straight to any of them via `scrollIntoView` — and,
+specifically for "Configurações da conexão", also sets `.open = true` on
+its `<details>` element first, so clicking that one menu item both
+scrolls to it and expands it in one step, which is exactly the two
+manual actions ("find it, then click it") that caused the confusion.
+Verified by starting a real server and confirming every menu target id
+(`card-settings`, `card-create-bot`, `card-bots`, `card-auto-trading`,
+`card-chart`, `card-alerts`, `card-wallets`, plus the pre-existing
+`content`) exists exactly once in the served HTML — cheap insurance
+against a typo silently turning a menu item into a dead click.
+
 ## macOS app — what the user needs to do on their own Mac
 
 Compiling in CI proves the code is correct; it does not give you a

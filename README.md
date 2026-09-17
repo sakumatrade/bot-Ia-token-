@@ -148,6 +148,11 @@ actually asks for): the backend is plain Python and already runs
 anywhere, so this page works today without Xcode, a Mac, or any build
 step, while the native app remains the primary experience.
 
+Next to the "Broker Sakuma" title, the **☰ Menu** button jumps straight
+to any section of the page (including opening "Configurações da conexão"
+automatically) — useful once the page has enough cards that scrolling to
+find one gets tedious.
+
 ## Watch-only wallets
 
 `POST /api/wallets` (also in the browser dashboard's "Carteiras" card) adds
