@@ -1209,6 +1209,48 @@ console errors, zero failed network requests, correct show/hide
 behavior clicking through every single menu entry, before and after
 the fix.
 
+## A "day trade" style panel: one big Start/Stop, not a toggle behind a menu
+
+The user asked for a platform that's easier to monitor and understand,
+in day-trading terms — one clear place to see whether the bot is running,
+with an obvious Start/Stop. First confirmed this was about the existing
+simulated system getting friendlier, not a request to connect to a real
+brokerage/exchange (that boundary is unchanged and was reiterated: no
+signer exists in this codebase, and none will be built without a real
+security audit).
+
+Replaced the old "Operação automática" card — a small toggle button
+buried behind the ☰ Menu, next to three numeric settings fields — with a
+new always-visible "Day Trade (simulado)" panel at the top of the page,
+right under the header, so it's the first thing anyone sees:
+
+- One big green **▶ Iniciar Day Trade** / red **⏸ Parar Day Trade**
+  button (`.daytrade-btn.start-btn` / `.stop-btn`), calling the same
+  `POST /api/system/auto-trading` endpoint the old toggle used — no new
+  backend behavior, just a much more obvious front door to it.
+- A pulsing status dot + text ("Rodando (ciclo a cada Ns)" / "Parado"),
+  reusing the existing dot/online CSS pattern from the top status badge.
+- Three live tiles (Capital operacional, P&L do dia, P&L total) fed from
+  the same `/api/dashboard` response the metrics grid below already used.
+- A live P&L chart aggregating *all* bots' trades together (not one bot
+  at a time like the existing "Gráfico do bot" card) — reused
+  `renderPnlChart` by parameterizing its container id and empty-state
+  message instead of duplicating the SVG-drawing code.
+- The old three numeric fields (cycle interval, launches per cycle,
+  position fraction) still exist, tucked into a collapsed "Configurações
+  avançadas" `<details>` inside the same card — available, not in the way.
+
+Verified with a real headless browser end-to-end: loaded the dashboard
+before any bot existed (button reads "Parado", tiles read $0.00, chart
+shows an empty-state message); then created a bot via
+`scripts/activate_bot.sh`, turned Day Trade on through the API (same
+call the button makes), let a couple of real simulated trades happen,
+and reloaded — button correctly flipped to the red "Parar Day Trade"
+state, the status dot pulsed, the tiles showed the real simulated P&L,
+and the aggregate chart rendered the actual trade line. Toggling the
+button by hand in the browser flipped it back correctly too. 228 backend
+tests still pass (this was a frontend-only change, no API changes).
+
 ## macOS app — what the user needs to do on their own Mac
 
 Compiling in CI proves the code is correct; it does not give you a

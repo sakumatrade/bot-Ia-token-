@@ -193,6 +193,30 @@
     border-radius: 8px;
     margin-bottom: 12px;
   }
+  .daytrade-card { border-width: 2px; }
+  .daytrade-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .daytrade-label { font-size: 13px; color: var(--muted); font-weight: 600; }
+  .daytrade-status { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+  .daytrade-btn {
+    font-size: 16px;
+    font-weight: 700;
+    padding: 14px 28px;
+    border-radius: 12px;
+    min-width: 220px;
+  }
+  .daytrade-btn.start-btn { background: var(--green); border-color: var(--green); color: white; }
+  .daytrade-btn.stop-btn { background: var(--red); border-color: var(--red); color: white; }
+  .dot.pulse { animation: dot-pulse 1.4s ease-in-out infinite; }
+  @keyframes dot-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+  }
 </style>
 </head>
 <body>
@@ -218,7 +242,6 @@
           <button data-target="content">Painel / status</button>
           <button data-target="card-create-bot">Criar bot</button>
           <button data-target="card-bots">O que o bot está fazendo</button>
-          <button data-target="card-auto-trading">Operação automática</button>
           <button data-target="card-chart">Gráfico do bot</button>
           <button data-target="card-alerts">Alertas</button>
           <button data-target="card-wallets">Carteiras</button>
@@ -231,6 +254,39 @@
     </div>
     <span id="status-badge" class="status-badge"><span class="dot" id="status-dot"></span><span id="status-text">Carregando…</span></span>
   </header>
+
+  <div class="card daytrade-card" id="card-daytrade">
+    <div class="daytrade-top">
+      <div>
+        <div class="daytrade-label">DAY TRADE (SIMULADO)</div>
+        <div class="daytrade-status"><span class="dot" id="daytrade-dot"></span><span id="daytrade-status-text">Carregando…</span></div>
+      </div>
+      <button id="btn-daytrade-toggle" class="daytrade-btn">Carregando…</button>
+    </div>
+    <div class="grid" style="margin-top: 14px;">
+      <div class="tile"><div class="label">Capital operacional</div><div class="value" id="dt-capital">—</div></div>
+      <div class="tile"><div class="label">P&amp;L do dia</div><div class="value" id="dt-daily-pnl">—</div></div>
+      <div class="tile"><div class="label">P&amp;L total</div><div class="value" id="dt-total-pnl">—</div></div>
+    </div>
+    <div id="daytrade-chart-container" style="margin-top: 12px;">
+      <p class="hint">Ainda não há operações simuladas suficientes para o gráfico.</p>
+    </div>
+    <details style="margin-top: 10px;">
+      <summary>Configurações avançadas</summary>
+      <div class="settings-row" style="margin-top: 8px;">
+        <label for="auto-interval">Intervalo entre ciclos (segundos)</label>
+        <input id="auto-interval" type="number" min="1" step="1" />
+        <label for="auto-launches">Lançamentos sintéticos por ciclo</label>
+        <input id="auto-launches" type="number" min="1" step="1" />
+        <label for="auto-fraction">Fração do capital por operação (0 a 1)</label>
+        <input id="auto-fraction" type="number" min="0.01" max="1" step="0.05" />
+        <div>
+          <button id="btn-auto-save" class="primary">Salvar configurações</button>
+          <span id="auto-save-status" class="hint"></span>
+        </div>
+      </div>
+    </details>
+  </div>
 
   <div class="card" id="card-settings" hidden>
     <details id="settings-details">
@@ -280,30 +336,6 @@
   <div class="card" id="card-bots" hidden>
     <strong>O que o bot está fazendo</strong>
     <ul class="plain" id="bots-list"><li class="hint">—</li></ul>
-  </div>
-
-  <div class="card" id="card-auto-trading" hidden>
-    <strong>Operação automática (simulada)</strong>
-    <p class="hint">
-      Quando ligada, todo bot ACTIVE observa e opera sozinho, sem precisar de
-      comando manual por operação — sempre com dinheiro simulado.
-    </p>
-    <div class="settings-row" style="margin-top: 8px;">
-      <div class="actions" style="margin-top: 0;">
-        <button id="btn-auto-toggle">Carregando…</button>
-        <span id="auto-trading-status" class="hint"></span>
-      </div>
-      <label for="auto-interval">Intervalo entre ciclos (segundos)</label>
-      <input id="auto-interval" type="number" min="1" step="1" />
-      <label for="auto-launches">Lançamentos sintéticos por ciclo</label>
-      <input id="auto-launches" type="number" min="1" step="1" />
-      <label for="auto-fraction">Fração do capital por operação (0 a 1)</label>
-      <input id="auto-fraction" type="number" min="0.01" max="1" step="0.05" />
-      <div>
-        <button id="btn-auto-save" class="primary">Salvar configurações</button>
-        <span id="auto-save-status" class="hint"></span>
-      </div>
-    </div>
   </div>
 
   <div class="card" id="card-chart" hidden>
@@ -446,6 +478,15 @@
     setStatusBadge(dashboard.system_state);
     const daily = dashboard.daily_pnl_usd;
     const total = dashboard.total_pnl_usd;
+
+    document.getElementById("dt-capital").textContent = fmtUsd(dashboard.capital_operational_usd);
+    const dailyEl = document.getElementById("dt-daily-pnl");
+    dailyEl.textContent = fmtUsd(daily);
+    dailyEl.className = "value " + (daily >= 0 ? "pos" : "neg");
+    const totalEl = document.getElementById("dt-total-pnl");
+    totalEl.textContent = fmtUsd(total);
+    totalEl.className = "value " + (total >= 0 ? "pos" : "neg");
+
     document.getElementById("content").innerHTML =
       '<div class="card">' +
       '<div class="grid">' +
@@ -621,40 +662,46 @@
     }
   }
 
-  let autoTradingLoaded = false;
+  let daytradeSettingsLoaded = false;
 
-  async function refreshAutoTradingStatus() {
-    const toggleBtn = document.getElementById("btn-auto-toggle");
-    const statusSpan = document.getElementById("auto-trading-status");
+  async function refreshDaytradeStatus() {
+    const toggleBtn = document.getElementById("btn-daytrade-toggle");
+    const statusText = document.getElementById("daytrade-status-text");
+    const dot = document.getElementById("daytrade-dot");
     try {
       const status = await api("/api/system/auto-trading");
-      toggleBtn.textContent = status.enabled ? "Desligar" : "Ligar";
-      toggleBtn.className = status.enabled ? "danger" : "primary";
-      statusSpan.textContent = status.enabled
-        ? status.running
-          ? "Rodando (ciclo a cada " + status.interval_seconds + "s)"
-          : "Ligando…"
-        : "Desligado";
+      const running = status.enabled && status.running;
+      toggleBtn.textContent = status.enabled ? "⏸ Parar Day Trade" : "▶ Iniciar Day Trade";
+      toggleBtn.className = "daytrade-btn " + (status.enabled ? "stop-btn" : "start-btn");
       toggleBtn.dataset.enabled = status.enabled ? "1" : "0";
 
-      if (!autoTradingLoaded) {
+      statusText.textContent = status.enabled
+        ? running
+          ? "Rodando (ciclo a cada " + status.interval_seconds + "s)"
+          : "Ligando…"
+        : "Parado";
+      dot.className = "dot pulse " + (running ? "online" : "");
+
+      if (!daytradeSettingsLoaded) {
         document.getElementById("auto-interval").value = status.interval_seconds;
         document.getElementById("auto-launches").value = status.launches_per_cycle;
         document.getElementById("auto-fraction").value = status.position_fraction_of_capital;
-        autoTradingLoaded = true;
+        daytradeSettingsLoaded = true;
       }
     } catch (err) {
       toggleBtn.textContent = "Indisponível";
-      statusSpan.textContent = escapeHtml(messageFor(err));
+      toggleBtn.className = "daytrade-btn";
+      statusText.textContent = escapeHtml(messageFor(err));
+      dot.className = "dot";
     }
   }
 
-  function initAutoTradingForm() {
-    document.getElementById("btn-auto-toggle").addEventListener("click", async (event) => {
-      const nowEnabled = event.target.dataset.enabled !== "1";
+  function initDaytradeControls() {
+    document.getElementById("btn-daytrade-toggle").addEventListener("click", async (event) => {
+      const nowEnabled = event.currentTarget.dataset.enabled !== "1";
       try {
         await api("/api/system/auto-trading", { method: "POST", body: JSON.stringify({ enabled: nowEnabled }) });
-        await refreshAutoTradingStatus();
+        await refreshDaytradeStatus();
       } catch (err) {
         alert(messageFor(err));
       }
@@ -671,17 +718,17 @@
         await api("/api/system/auto-trading", { method: "POST", body: JSON.stringify(body) });
         status.textContent = "Salvo.";
         setTimeout(() => (status.textContent = ""), 2000);
-        await refreshAutoTradingStatus();
+        await refreshDaytradeStatus();
       } catch (err) {
         status.textContent = messageFor(err);
       }
     });
   }
 
-  function renderPnlChart(trades) {
-    const container = document.getElementById("chart-container");
+  function renderPnlChart(trades, containerId, emptyMessage) {
+    const container = document.getElementById(containerId || "chart-container");
     if (!trades.length) {
-      container.innerHTML = '<p class="hint">Este bot ainda não fez nenhuma operação simulada.</p>';
+      container.innerHTML = '<p class="hint">' + (emptyMessage || "Este bot ainda não fez nenhuma operação simulada.") + "</p>";
       return;
     }
 
@@ -752,6 +799,19 @@
 
   function initChart() {
     document.getElementById("chart-bot-select").addEventListener("change", refreshChart);
+  }
+
+  async function refreshDaytradeChart() {
+    try {
+      const trades = await api("/api/trades?limit=1000");
+      renderPnlChart(
+        trades,
+        "daytrade-chart-container",
+        "Ainda não há operações simuladas suficientes para o gráfico."
+      );
+    } catch (err) {
+      document.getElementById("daytrade-chart-container").innerHTML = '<p class="hint">' + escapeHtml(messageFor(err)) + "</p>";
+    }
   }
 
   function initAddWalletForm() {
@@ -848,7 +908,8 @@
     await refreshBots();
     await refreshAlerts();
     await refreshWallets();
-    await refreshAutoTradingStatus();
+    await refreshDaytradeStatus();
+    await refreshDaytradeChart();
     await refreshChartBotOptions();
     await refreshChart();
     await refreshTicker();
@@ -940,7 +1001,7 @@
   initSettingsForm();
   initCreateBotForm();
   initAddWalletForm();
-  initAutoTradingForm();
+  initDaytradeControls();
   initChart();
   initMenu();
   refresh();
