@@ -33,6 +33,22 @@ Defaults are conservative: `environment=simulation`,
 `trading.live_trading_enabled=false`. Nothing in this codebase can move real
 funds; see `docs/ARCHITECTURE.md#security` for why.
 
+## Updating to the latest code
+
+```bash
+./scripts/update.sh
+```
+
+Pulls whatever has been pushed to your current branch, reinstalls the
+backend, and restarts the server (via `start_server.sh` below) — one
+command instead of `git pull` + `pip install -e ".[dev]"` + restart by
+hand. There is deliberately no "update" button *inside* the running
+app/dashboard: nothing in this codebase is allowed to shell out and run
+a command like `git pull` (`test_no_module_anywhere_shells_out_or_evals`
+forbids importing `subprocess`/`os` anywhere, on purpose — an API able
+to run arbitrary shell commands would be a real security hole). This
+script is the safe, one-command equivalent you run yourself.
+
 ## Running the Local API
 
 The Local API (spec section 38) requires an explicit API key — with none
