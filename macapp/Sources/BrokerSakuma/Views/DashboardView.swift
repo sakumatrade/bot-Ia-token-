@@ -4,6 +4,7 @@ import SwiftUI
 struct DashboardView: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.openURL) private var openURL
     @State private var newBotName: String = ""
 
     var body: some View {
@@ -57,6 +58,12 @@ struct DashboardView: View {
             }
             .pickerStyle(.segmented)
             .frame(width: 200)
+            Button {
+                openURL(APIClient.defaultBaseURL.appendingPathComponent("dashboard"))
+            } label: {
+                Image(systemName: "safari")
+            }
+            .help("Abrir o painel no navegador")
             Button {
                 openWindow(id: "settings")
             } label: {

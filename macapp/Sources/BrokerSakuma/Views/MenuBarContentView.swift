@@ -8,6 +8,7 @@ import SwiftUI
 struct MenuBarContentView: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.openURL) private var openURL
     @State private var showEmergencyStopConfirmation = false
 
     var body: some View {
@@ -28,26 +29,34 @@ struct MenuBarContentView: View {
 
             Divider()
 
-            Button("Abrir Broker Sakuma") {
-                openWindow(id: "dashboard")
-            }
+            // Grouped so this VStack's own child count stays well under
+            // ViewBuilder's per-block limit as items get added here.
+            Group {
+                Button("Abrir Broker Sakuma") {
+                    openWindow(id: "dashboard")
+                }
 
-            Button("Configurações") {
-                openWindow(id: "settings")
-            }
+                Button("Configurações") {
+                    openWindow(id: "settings")
+                }
 
-            Button("Pausar") {
-                Task { await appState.sendSystemAction(.pause) }
-            }
+                Button("Abrir painel no navegador") {
+                    openURL(APIClient.defaultBaseURL.appendingPathComponent("dashboard"))
+                }
 
-            Button("Retomar") {
-                Task { await appState.sendSystemAction(.resume) }
-            }
+                Button("Pausar") {
+                    Task { await appState.sendSystemAction(.pause) }
+                }
 
-            Button("🛑 Parada de Emergência") {
-                showEmergencyStopConfirmation = true
+                Button("Retomar") {
+                    Task { await appState.sendSystemAction(.resume) }
+                }
+
+                Button("🛑 Parada de Emergência") {
+                    showEmergencyStopConfirmation = true
+                }
+                .foregroundStyle(.red)
             }
-            .foregroundStyle(.red)
 
             Divider()
 

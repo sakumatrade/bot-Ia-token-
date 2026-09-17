@@ -15,10 +15,15 @@ enum SystemAction: String {
 /// safe "disconnected" state — it never falls back to fake/simulated
 /// numbers just to have something to show.
 actor APIClient {
+    /// The Local API's default address (spec section 38) — also what the
+    /// dashboard's "Abrir painel no navegador" button opens, so the two
+    /// never drift apart.
+    static let defaultBaseURL = URL(string: "http://127.0.0.1:8765")!
+
     private let baseURL: URL
     private let session: URLSession
 
-    init(baseURL: URL = URL(string: "http://127.0.0.1:8765")!) {
+    init(baseURL: URL = APIClient.defaultBaseURL) {
         self.baseURL = baseURL
         let configuration = URLSessionConfiguration.ephemeral
         configuration.timeoutIntervalForRequest = 5
