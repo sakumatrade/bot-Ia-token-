@@ -145,6 +145,31 @@
     width: 100%;
   }
   .menu-dropdown button:hover { background: var(--bg); }
+  .ticker-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    overflow: hidden;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin-bottom: 12px;
+  }
+  .ticker-label { flex-shrink: 0; font-size: 12px; font-weight: 700; color: var(--muted); }
+  .ticker-track-outer { overflow: hidden; flex: 1; }
+  .ticker-track {
+    display: inline-block;
+    white-space: nowrap;
+    animation: ticker-scroll 25s linear infinite;
+  }
+  @keyframes ticker-scroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+  .ticker-item { display: inline-block; margin-right: 28px; font-size: 12px; color: var(--text); }
+  .ticker-item.watch { color: var(--blue); }
+  .ticker-item.ignore { color: var(--muted); }
   .sim-banner {
     background: var(--yellow);
     color: #1c1c1e;
@@ -161,6 +186,14 @@
 <div class="wrap">
   <div class="sim-banner">
     🧪 Modo de testes — dinheiro simulado, para você aprender e testar estratégias sem risco.
+  </div>
+  <div class="ticker-wrap">
+    <span class="ticker-label">🧪 Monitorando agora (simulado):</span>
+    <div class="ticker-track-outer">
+      <div class="ticker-track" id="ticker-track">
+        <span class="ticker-item">Carregando…</span>
+      </div>
+    </div>
   </div>
   <header>
     <div class="title-row">
@@ -184,7 +217,7 @@
     <span id="status-badge" class="status-badge"><span class="dot" id="status-dot"></span><span id="status-text">Carregando…</span></span>
   </header>
 
-  <div class="card" id="card-settings">
+  <div class="card" id="card-settings" hidden>
     <details id="settings-details">
       <summary>Configurações da conexão</summary>
       <div class="settings-row" style="margin-top: 10px;">
@@ -209,7 +242,7 @@
     <p class="hint">Conectando…</p>
   </div>
 
-  <div class="card" id="card-create-bot">
+  <div class="card" id="card-create-bot" hidden>
     <strong>Criar bot</strong>
     <p class="hint">
       Cria (se ainda não existir) a Mother Bot com o capital simulado
@@ -229,12 +262,12 @@
     </form>
   </div>
 
-  <div class="card" id="card-bots">
+  <div class="card" id="card-bots" hidden>
     <strong>O que o bot está fazendo</strong>
     <ul class="plain" id="bots-list"><li class="hint">—</li></ul>
   </div>
 
-  <div class="card" id="card-auto-trading">
+  <div class="card" id="card-auto-trading" hidden>
     <strong>Operação automática (simulada)</strong>
     <p class="hint">
       Quando ligada, todo bot ACTIVE observa e opera sozinho, sem precisar de
@@ -258,7 +291,7 @@
     </div>
   </div>
 
-  <div class="card" id="card-chart">
+  <div class="card" id="card-chart" hidden>
     <strong>Gráfico do bot</strong>
     <div class="settings-row" style="margin-top: 8px;">
       <select id="chart-bot-select"><option value="">Selecione um bot…</option></select>
@@ -268,12 +301,12 @@
     </div>
   </div>
 
-  <div class="card" id="card-alerts">
+  <div class="card" id="card-alerts" hidden>
     <strong>Alertas</strong>
     <ul class="plain" id="alerts-list"><li class="hint">Nenhum alerta.</li></ul>
   </div>
 
-  <div class="card" id="card-wallets">
+  <div class="card" id="card-wallets" hidden>
     <strong>Carteiras (só visualização)</strong>
     <p class="hint">
       Cole aqui apenas o endereço público da sua carteira, para acompanhar o saldo.
@@ -715,6 +748,26 @@
     });
   }
 
+  async function refreshTicker() {
+    const track = document.getElementById("ticker-track");
+    try {
+      const opportunities = await api("/api/opportunities?limit=15");
+      if (!opportunities.length) {
+        track.innerHTML = '<span class="ticker-item">Nenhuma atividade monitorada ainda — ligue a operação automática ou rode um ciclo manual.</span>';
+        return;
+      }
+      const items = opportunities.map((o) => {
+        const description = o.description || o.id;
+        const cls = description.includes("WATCH") ? "watch" : description.includes("IGNORE") ? "ignore" : "";
+        return '<span class="ticker-item ' + cls + '">' + escapeHtml(description) + "</span>";
+      });
+      // Duplicated once so the CSS animation (translateX to -50%) loops seamlessly.
+      track.innerHTML = items.join("") + items.join("");
+    } catch (err) {
+      track.innerHTML = '<span class="ticker-item">' + escapeHtml(messageFor(err)) + "</span>";
+    }
+  }
+
   async function refresh() {
     try {
       const dashboard = await api("/api/dashboard");
@@ -728,13 +781,17 @@
     await refreshAutoTradingStatus();
     await refreshChartBotOptions();
     await refreshChart();
+    await refreshTicker();
   }
 
   function initSettingsForm() {
     const { baseUrl, apiKey } = loadSettings();
     document.getElementById("base-url").value = baseUrl;
     document.getElementById("api-key").value = apiKey;
-    if (!apiKey) document.getElementById("settings-details").open = true;
+    if (!apiKey) {
+      document.getElementById("settings-details").open = true;
+      document.getElementById("card-settings").hidden = false;
+    }
 
     document.getElementById("save-settings").addEventListener("click", () => {
       const newBaseUrl = document.getElementById("base-url").value.trim() || DEFAULT_BASE_URL;
@@ -763,14 +820,26 @@
 
     dropdown.querySelectorAll("button[data-target]").forEach((item) => {
       item.addEventListener("click", () => {
+        const target = document.getElementById(item.dataset.target);
+        dropdown.hidden = true;
+        if (!target) return;
+
+        // "content" (the main dashboard metrics) is always visible; every
+        // other section starts hidden and this menu is what reveals it —
+        // clicking again hides it, so the menu doubles as a show/hide toggle.
+        if (target.hasAttribute("hidden") || target.hidden) {
+          target.hidden = false;
+        } else if (target.id !== "content") {
+          target.hidden = true;
+          return;
+        }
+
         const openDetailsId = item.dataset.openDetails;
         if (openDetailsId) {
           const details = document.getElementById(openDetailsId);
           if (details) details.open = true;
         }
-        const target = document.getElementById(item.dataset.target);
-        if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
-        dropdown.hidden = true;
+        target.scrollIntoView({ behavior: "smooth", block: "start" });
       });
     });
 

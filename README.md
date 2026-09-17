@@ -148,10 +148,15 @@ actually asks for): the backend is plain Python and already runs
 anywhere, so this page works today without Xcode, a Mac, or any build
 step, while the native app remains the primary experience.
 
-Next to the "Broker Sakuma" title, the **☰ Menu** button jumps straight
-to any section of the page (including opening "Configurações da conexão"
-automatically) — useful once the page has enough cards that scrolling to
-find one gets tedious.
+Next to the "Broker Sakuma" title, the **☰ Menu** button shows and hides
+each section — every card except the main status panel starts hidden,
+and clicking a menu entry reveals (and scrolls to) that one, opening
+"Configurações da conexão" automatically too. Click the same entry again
+to hide it. Below the "modo de testes" banner, a scrolling ticker shows
+what the monitor is currently watching in real time — built from
+`/api/opportunities` (the same WATCH/IGNORE decisions
+`PumpFunMonitor` already records), so it only ever shows genuinely
+simulated activity, never anything dressed up as a real market feed.
 
 ## Watch-only wallets
 

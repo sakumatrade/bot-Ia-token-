@@ -1049,6 +1049,38 @@ Verified by starting a real server and confirming every menu target id
 `content`) exists exactly once in the served HTML — cheap insurance
 against a typo silently turning a menu item into a dead click.
 
+## Post-Phase-17 addition: collapsible sections + a live "what's being monitored" ticker
+
+Two more requests on the browser dashboard: make the Menu actually
+show/hide sections instead of only scrolling to them, and add a bar
+showing the crypto prices the bot is watching in real time.
+
+**Collapsible sections**: every card except the main status panel
+(`#content`) now starts with the `hidden` attribute in the markup
+itself. The Menu's click handler un-hides (and scrolls to) a section the
+first time, and hides it again on a second click — the same handler
+already had to open `Configurações da conexão`'s `<details>` on click,
+so this reused that logic rather than adding a parallel mechanism.
+`initSettingsForm()`'s existing "no API key yet → auto-open settings"
+branch also un-hides `#card-settings` now, since opening a `<details>`
+inside a `hidden` parent wouldn't actually show anything.
+
+**Live monitoring ticker**: "the crypto prices the bot is monitoring in
+real time" needed an honest translation — there is no real crypto price
+feed anywhere in this system (spec section 61 forbids ever faking one),
+so a literal price ticker would have had to invent numbers. What
+actually exists and is genuinely real-time is `PumpFunMonitor`'s
+WATCH/IGNORE triage, already persisted to the `opportunities` table with
+a human-readable description (`"SYN1234 (Synthetic Token 1234) — WATCH:
+..."`) and already exposed via `GET /api/opportunities` — no backend
+change needed at all. The new ticker bar (a CSS-animated horizontal
+scroll, content duplicated once for a seamless loop) polls that endpoint
+on the existing 5-second refresh cycle and color-codes WATCH vs IGNORE.
+Verified end-to-end against a live server: created a bot, ran a cycle,
+and confirmed `/api/opportunities` returns exactly the descriptions the
+ticker renders, labeled 🧪 simulated throughout so it's never mistaken
+for a real market feed.
+
 ## macOS app — what the user needs to do on their own Mac
 
 Compiling in CI proves the code is correct; it does not give you a
