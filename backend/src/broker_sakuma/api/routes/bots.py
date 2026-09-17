@@ -24,7 +24,7 @@ from sqlalchemy.orm import Session
 from broker_sakuma.api.deps import get_db, get_settings, require_api_key
 from broker_sakuma.api.schemas import ActivateBotResponse, BotSummary, CreateMotherBotRequest, SpawnSonRequest
 from broker_sakuma.config import Settings
-from broker_sakuma.core.enums import BotState
+from broker_sakuma.core.enums import BotLifecycleEventType, BotState
 from broker_sakuma.db import models
 from broker_sakuma.engines.lineage_engine import GrowthPolicyViolation, LineageEngine
 from broker_sakuma.engines.loan_engine import BotLoanEngine, LoanExposureExceeded
@@ -126,3 +126,67 @@ def activate_bot(
     db.refresh(bot)
 
     return ActivateBotResponse(bot=BotSummary.model_validate(bot), thesis_id=thesis.id, initial_capital_usd=thesis.current_capital_usd)
+
+
+@router.post("/bots/{bot_id}/pause", response_model=BotSummary)
+def pause_bot(bot_id: str, db: Session = Depends(get_db)) -> models.Bot:
+    """Take this one bot out of the autonomous PAPER-trading loop (spec
+    section 64's existing PAUSED state) without touching any other bot —
+    the loop only ever picks up bots with ``state == ACTIVE``
+    (``engines/autonomous_trading_cycle.py``). Idempotent: pausing an
+    already-paused bot just returns it unchanged."""
+
+    bot = db.get(models.Bot, bot_id)
+    if bot is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"bot {bot_id} not found")
+    if bot.state == BotState.DEAD:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"bot {bot_id} is DEAD; cannot pause it")
+    if bot.state == BotState.PAUSED:
+        return bot
+
+    # A bot freshly loaded from the DB comes back with a plain str for
+    # this column (no SQLAlchemy Enum type is used), not a BotState
+    # instance — BotState(...) normalizes either case.
+    previous_state = BotState(bot.state) if bot.state else None
+    bot.state = BotState.PAUSED
+    db.add(bot)
+    db.add(
+        models.BotLifecycleEvent(
+            bot_id=bot.id,
+            event_type=BotLifecycleEventType.STATE_CHANGE,
+            from_state=previous_state.value if previous_state else None,
+            to_state=BotState.PAUSED.value,
+            reason="paused by operator via /api/bots/{id}/pause",
+        )
+    )
+    db.commit()
+    db.refresh(bot)
+    return bot
+
+
+@router.post("/bots/{bot_id}/resume", response_model=BotSummary)
+def resume_bot(bot_id: str, db: Session = Depends(get_db)) -> models.Bot:
+    """Put a PAUSED bot back into ACTIVE so it re-enters the autonomous
+    loop. Only valid from PAUSED — this is not a general state-machine
+    jump, just the other half of ``/pause``."""
+
+    bot = db.get(models.Bot, bot_id)
+    if bot is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"bot {bot_id} not found")
+    if bot.state != BotState.PAUSED:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"bot {bot_id} is not PAUSED (state={bot.state})")
+
+    bot.state = BotState.ACTIVE
+    db.add(bot)
+    db.add(
+        models.BotLifecycleEvent(
+            bot_id=bot.id,
+            event_type=BotLifecycleEventType.STATE_CHANGE,
+            from_state=BotState.PAUSED.value,
+            to_state=BotState.ACTIVE.value,
+            reason="resumed by operator via /api/bots/{id}/resume",
+        )
+    )
+    db.commit()
+    db.refresh(bot)
+    return bot

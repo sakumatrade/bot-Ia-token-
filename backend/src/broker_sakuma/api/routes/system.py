@@ -1,12 +1,18 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from broker_sakuma.adapters.pumpfun.mock_provider import MockPumpFunProvider
 from broker_sakuma.adapters.pumpfun.synthetic_launch_generator import SyntheticLaunchGenerator
 from broker_sakuma.api.deps import get_db, get_settings, require_api_key
-from broker_sakuma.api.schemas import KillSwitchRequest, RunCycleResponse, SystemActionResponse
+from broker_sakuma.api.schemas import (
+    AutoTradingStatusResponse,
+    KillSwitchRequest,
+    RunCycleResponse,
+    SystemActionResponse,
+    UpdateAutoTradingRequest,
+)
 from broker_sakuma.config import Settings
 from broker_sakuma.engines.autonomous_trading_cycle import AutonomousTradingCycle
 from broker_sakuma.engines.telegram_notifications import ProfitNotifier
@@ -80,3 +86,49 @@ def run_cycle(db: Session = Depends(get_db), settings: Settings = Depends(get_se
         trades_executed=result.trades_executed,
         bots_died=result.bots_died,
     )
+
+
+def _auto_trading_status(request: Request, settings: Settings) -> AutoTradingStatusResponse:
+    task = getattr(request.app.state, "auto_trading_task", None)
+    return AutoTradingStatusResponse(
+        enabled=settings.auto_trading.enabled,
+        running=task is not None and not task.done(),
+        interval_seconds=settings.auto_trading.interval_seconds,
+        launches_per_cycle=settings.auto_trading.launches_per_cycle,
+        position_fraction_of_capital=settings.auto_trading.position_fraction_of_capital,
+    )
+
+
+@router.get("/auto-trading", response_model=AutoTradingStatusResponse)
+def get_auto_trading(request: Request, settings: Settings = Depends(get_settings)) -> AutoTradingStatusResponse:
+    return _auto_trading_status(request, settings)
+
+
+@router.post("/auto-trading", response_model=AutoTradingStatusResponse)
+async def update_auto_trading(
+    payload: UpdateAutoTradingRequest, request: Request, settings: Settings = Depends(get_settings)
+) -> AutoTradingStatusResponse:
+    """Toggle or reconfigure the autonomous PAPER-trading loop live, with
+    no server restart needed — a bot's operation stays simulated
+    regardless (see ``engines/autonomous_trading_cycle.py``)."""
+
+    from broker_sakuma.api.app import start_auto_trading, stop_auto_trading
+
+    if payload.interval_seconds is not None:
+        settings.auto_trading.interval_seconds = payload.interval_seconds
+    if payload.launches_per_cycle is not None:
+        settings.auto_trading.launches_per_cycle = payload.launches_per_cycle
+    if payload.position_fraction_of_capital is not None:
+        settings.auto_trading.position_fraction_of_capital = payload.position_fraction_of_capital
+
+    if payload.enabled is not None:
+        settings.auto_trading.enabled = payload.enabled
+
+    if settings.auto_trading.enabled:
+        # Restart so a changed interval/config takes effect immediately.
+        stop_auto_trading(request.app)
+        start_auto_trading(request.app)
+    else:
+        stop_auto_trading(request.app)
+
+    return _auto_trading_status(request, settings)

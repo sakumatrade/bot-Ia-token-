@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class StatusResponse(BaseModel):
@@ -207,6 +207,25 @@ class GrowthResponse(BaseModel):
 
 class SystemActionResponse(BaseModel):
     system_state: str
+
+
+class AutoTradingStatusResponse(BaseModel):
+    """Live status of the autonomous PAPER-trading loop — ``running``
+    reflects whether the background task is actually active right now,
+    which can differ from ``enabled`` for a moment right after a toggle."""
+
+    enabled: bool
+    running: bool
+    interval_seconds: float
+    launches_per_cycle: int
+    position_fraction_of_capital: float
+
+
+class UpdateAutoTradingRequest(BaseModel):
+    enabled: bool | None = None
+    interval_seconds: float | None = Field(default=None, gt=0)
+    launches_per_cycle: int | None = Field(default=None, ge=1)
+    position_fraction_of_capital: float | None = Field(default=None, gt=0, le=1)
 
 
 class RunCycleResponse(BaseModel):

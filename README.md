@@ -155,6 +155,36 @@ this can never become live trading (`trading.live_trading_enabled` stays
 `False` regardless of this flag) and why it can never be pointed at a
 real Pump.fun feed.
 
+### Turning it on/off live, and adjusting it, without restarting the server
+
+You don't have to set the environment variable above and restart — the
+browser dashboard's "Operação automática" card has a Ligar/Desligar
+button plus fields for the interval, launches per cycle and position
+size, backed by:
+
+```bash
+# Check current status
+curl -s -H "X-API-Key: $API_KEY" http://127.0.0.1:8765/api/system/auto-trading
+
+# Turn it on (or off), and/or change any of its parameters, live:
+curl -s -X POST -H "X-API-Key: $API_KEY" -H "Content-Type: application/json" \
+  http://127.0.0.1:8765/api/system/auto-trading \
+  -d '{"enabled": true, "interval_seconds": 10, "position_fraction_of_capital": 0.5}'
+```
+
+### Pausing one bot without stopping the others
+
+`POST /api/bots/{id}/pause` and `POST /api/bots/{id}/resume` take one bot
+in or out of the autonomous loop individually (it just moves the bot to
+the existing `PAUSED` state and back to `ACTIVE` — the loop only ever
+picks up bots with `state == ACTIVE`). The browser dashboard's "O que o
+bot está fazendo" card has a Pausar/Retomar button next to each bot.
+
+```bash
+curl -s -X POST -H "X-API-Key: $API_KEY" http://127.0.0.1:8765/api/bots/BOT_ID_AQUI/pause
+curl -s -X POST -H "X-API-Key: $API_KEY" http://127.0.0.1:8765/api/bots/BOT_ID_AQUI/resume
+```
+
 You can also trigger a single tick manually at any time, loop enabled or
 not:
 ```bash

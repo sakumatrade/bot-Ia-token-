@@ -782,6 +782,56 @@ by assumption:
    `trading.live_trading_enabled` is untouched and still `False` — this
    loop has no path to real money, same as everything else in this repo.
 
+## Post-Phase-17 addition: live controls for the autonomous loop, and a real bug it surfaced
+
+After the autonomous loop above, the user asked (again) for real money —
+declined again, same reasoning as every earlier entry — then asked
+directly: **"então pra que esse bot serve?"** (then what is this bot
+for?). Answered honestly: it's a learning/simulation tool, not a product
+that makes real money, and that boundary isn't changing. The user then
+asked for "poderes de escolher as opções" (power to choose the options);
+clarified via `AskUserQuestion` into three concrete, buildable asks:
+
+1. **A settings panel** for the autonomous loop's parameters.
+2. **A live on/off toggle**, no server restart.
+3. **Pause/resume individual bots**, independent of the others.
+
+All three landed as pure additions, no new DB migration needed — `core/enums.py`'s
+`BotState` already had an unused `PAUSED` value from spec section 64, so
+"pause a bot" is just `bot.state = BotState.PAUSED`; `AutonomousTradingCycle
+._tradeable_bots()` already only selects `state == ACTIVE`, so a paused bot
+is automatically skipped with no change to that engine at all.
+`app.py` gained `start_auto_trading()`/`stop_auto_trading()` helpers (used
+by both the lifespan startup and the new endpoint) so a request handler
+can start or cancel the background `asyncio.Task` live; `GET`/`POST
+/api/system/auto-trading` expose that plus the tunable parameters
+(`interval_seconds`, `launches_per_cycle`, `position_fraction_of_capital`),
+and `POST /api/bots/{id}/pause`/`/resume` handle the per-bot toggle. The
+browser dashboard got a matching "Operação automática" card and a
+Pausar/Retomar button per bot — and while wiring the dashboard's chart
+card from the previous entry, found it had never actually been connected
+to `refresh()`/init in that same commit; fixed alongside this.
+
+Writing the tests here caught a real, pre-existing bug:
+`MaximumLossPolicy.enforce()`'s `previous_state.value if previous_state
+else None` assumed `bot.state` is always a `BotState` enum instance, but
+a `Bot` loaded fresh from the database in a new session (exactly what
+every API request does, and now what the autonomous loop's background
+task does constantly) comes back with a plain Python `str` for that
+column — SQLAlchemy doesn't apply an `Enum` type here, just `String(32)`.
+`str` has no `.value`, so any bot dying via a fresh session would have
+thrown `AttributeError` and turned that request into a 500 (or, in the
+background loop, a silently-logged failed cycle) instead of actually
+recording the death. `lineage_engine.py`'s `lineage_tree()` already
+guarded against exactly this with `hasattr(bot.state, "value") else
+bot.state`; `max_loss_policy.py` didn't, and my own first draft of the
+pause endpoint copied the same broken pattern. Both now normalize with
+`BotState(bot.state) if bot.state else None` before reading `.value`.
+Caught by `test_bot_pause_and_auto_trading_control.py`'s pause-then-check
+tests, which go through the real `TestClient` (a fresh session per
+request) rather than a single shared `db_session` fixture — the same
+gap that let the bug through undetected until now.
+
 ## macOS app — what the user needs to do on their own Mac
 
 Compiling in CI proves the code is correct; it does not give you a

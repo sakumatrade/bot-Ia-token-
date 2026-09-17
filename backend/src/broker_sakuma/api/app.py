@@ -53,16 +53,36 @@ async def _auto_trading_loop(app: FastAPI) -> None:
             logger.exception("autonomous trading cycle failed; will retry next tick")
 
 
+def start_auto_trading(app: FastAPI) -> None:
+    """Start the background loop now, if it isn't already running. Safe to
+    call from a request handler (e.g. ``POST /api/system/auto-trading``)
+    to flip this on live, with no server restart needed."""
+
+    existing: asyncio.Task | None = getattr(app.state, "auto_trading_task", None)
+    if existing is not None and not existing.done():
+        return
+    app.state.auto_trading_task = asyncio.create_task(_auto_trading_loop(app))
+
+
+def stop_auto_trading(app: FastAPI) -> None:
+    """Stop the background loop now, if it's running. Safe to call from a
+    request handler to flip this off live."""
+
+    existing: asyncio.Task | None = getattr(app.state, "auto_trading_task", None)
+    if existing is not None:
+        existing.cancel()
+    app.state.auto_trading_task = None
+
+
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
-    task: asyncio.Task | None = None
+    app.state.auto_trading_task = None
     if app.state.settings.auto_trading.enabled:
-        task = asyncio.create_task(_auto_trading_loop(app))
+        start_auto_trading(app)
     try:
         yield
     finally:
-        if task is not None:
-            task.cancel()
+        stop_auto_trading(app)
 
 
 def create_app(settings: Settings | None = None, create_tables: bool = True) -> FastAPI:

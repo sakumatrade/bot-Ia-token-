@@ -36,7 +36,10 @@ class MaximumLossPolicy:
         if not self.has_breached(bot):
             return False
 
-        previous_state = bot.state
+        # A bot freshly loaded from the DB in a new session comes back with
+        # a plain str for this column (no SQLAlchemy Enum type is used),
+        # not a BotState instance — BotState(...) normalizes either case.
+        previous_state = BotState(bot.state) if bot.state else None
         bot.state = BotState.DEAD
         bot.died_at = datetime.now(timezone.utc)
         session.add(bot)

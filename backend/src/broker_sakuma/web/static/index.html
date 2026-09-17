@@ -158,6 +158,30 @@
   </div>
 
   <div class="card">
+    <strong>Operação automática (simulada)</strong>
+    <p class="hint">
+      Quando ligada, todo bot ACTIVE observa e opera sozinho, sem precisar de
+      comando manual por operação — sempre com dinheiro simulado.
+    </p>
+    <div class="settings-row" style="margin-top: 8px;">
+      <div class="actions" style="margin-top: 0;">
+        <button id="btn-auto-toggle">Carregando…</button>
+        <span id="auto-trading-status" class="hint"></span>
+      </div>
+      <label for="auto-interval">Intervalo entre ciclos (segundos)</label>
+      <input id="auto-interval" type="number" min="1" step="1" />
+      <label for="auto-launches">Lançamentos sintéticos por ciclo</label>
+      <input id="auto-launches" type="number" min="1" step="1" />
+      <label for="auto-fraction">Fração do capital por operação (0 a 1)</label>
+      <input id="auto-fraction" type="number" min="0.01" max="1" step="0.05" />
+      <div>
+        <button id="btn-auto-save" class="primary">Salvar configurações</button>
+        <span id="auto-save-status" class="hint"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
     <strong>Gráfico do bot</strong>
     <div class="settings-row" style="margin-top: 8px;">
       <select id="chart-bot-select"><option value="">Selecione um bot…</option></select>
@@ -330,6 +354,15 @@
     );
   }
 
+  async function togglePauseBot(botId, action) {
+    try {
+      await api("/api/bots/" + botId + "/" + action, { method: "POST" });
+      await refresh();
+    } catch (err) {
+      alert(messageFor(err));
+    }
+  }
+
   async function refreshBots() {
     const list = document.getElementById("bots-list");
     try {
@@ -340,8 +373,29 @@
       }
       list.innerHTML = bots
         .slice(0, 15)
-        .map((b) => "<li><span>" + escapeHtml(b.name) + "</span><span>" + escapeHtml(b.state) + "</span></li>")
+        .map((b) => {
+          const isRoot = !b.parent_id;
+          let action = "";
+          if (!isRoot && b.state !== "DEAD") {
+            action =
+              b.state === "PAUSED"
+                ? '<button data-bot-id="' + escapeHtml(b.id) + '" data-action="resume" class="btn-bot-toggle">Retomar</button>'
+                : '<button data-bot-id="' + escapeHtml(b.id) + '" data-action="pause" class="btn-bot-toggle">Pausar</button>';
+          }
+          return (
+            "<li><span>" +
+            escapeHtml(b.name) +
+            "</span><span>" +
+            escapeHtml(b.state) +
+            " " +
+            action +
+            "</span></li>"
+          );
+        })
         .join("");
+      list.querySelectorAll(".btn-bot-toggle").forEach((btn) => {
+        btn.addEventListener("click", () => togglePauseBot(btn.dataset.botId, btn.dataset.action));
+      });
     } catch (err) {
       list.innerHTML = '<li class="hint">' + escapeHtml(messageFor(err)) + "</li>";
     }
@@ -388,6 +442,63 @@
     } catch (err) {
       list.innerHTML = '<li class="hint">' + escapeHtml(messageFor(err)) + "</li>";
     }
+  }
+
+  let autoTradingLoaded = false;
+
+  async function refreshAutoTradingStatus() {
+    const toggleBtn = document.getElementById("btn-auto-toggle");
+    const statusSpan = document.getElementById("auto-trading-status");
+    try {
+      const status = await api("/api/system/auto-trading");
+      toggleBtn.textContent = status.enabled ? "Desligar" : "Ligar";
+      toggleBtn.className = status.enabled ? "danger" : "primary";
+      statusSpan.textContent = status.enabled
+        ? status.running
+          ? "Rodando (ciclo a cada " + status.interval_seconds + "s)"
+          : "Ligando…"
+        : "Desligado";
+      toggleBtn.dataset.enabled = status.enabled ? "1" : "0";
+
+      if (!autoTradingLoaded) {
+        document.getElementById("auto-interval").value = status.interval_seconds;
+        document.getElementById("auto-launches").value = status.launches_per_cycle;
+        document.getElementById("auto-fraction").value = status.position_fraction_of_capital;
+        autoTradingLoaded = true;
+      }
+    } catch (err) {
+      toggleBtn.textContent = "Indisponível";
+      statusSpan.textContent = escapeHtml(messageFor(err));
+    }
+  }
+
+  function initAutoTradingForm() {
+    document.getElementById("btn-auto-toggle").addEventListener("click", async (event) => {
+      const nowEnabled = event.target.dataset.enabled !== "1";
+      try {
+        await api("/api/system/auto-trading", { method: "POST", body: JSON.stringify({ enabled: nowEnabled }) });
+        await refreshAutoTradingStatus();
+      } catch (err) {
+        alert(messageFor(err));
+      }
+    });
+
+    document.getElementById("btn-auto-save").addEventListener("click", async () => {
+      const status = document.getElementById("auto-save-status");
+      const body = {
+        interval_seconds: parseFloat(document.getElementById("auto-interval").value),
+        launches_per_cycle: parseInt(document.getElementById("auto-launches").value, 10),
+        position_fraction_of_capital: parseFloat(document.getElementById("auto-fraction").value),
+      };
+      try {
+        await api("/api/system/auto-trading", { method: "POST", body: JSON.stringify(body) });
+        status.textContent = "Salvo.";
+        setTimeout(() => (status.textContent = ""), 2000);
+        await refreshAutoTradingStatus();
+      } catch (err) {
+        status.textContent = messageFor(err);
+      }
+    });
   }
 
   function renderPnlChart(trades) {
@@ -499,6 +610,9 @@
     await refreshBots();
     await refreshAlerts();
     await refreshWallets();
+    await refreshAutoTradingStatus();
+    await refreshChartBotOptions();
+    await refreshChart();
   }
 
   function initSettingsForm() {
@@ -519,6 +633,8 @@
 
   initSettingsForm();
   initAddWalletForm();
+  initAutoTradingForm();
+  initChart();
   refresh();
   setInterval(refresh, 5000);
 })();
