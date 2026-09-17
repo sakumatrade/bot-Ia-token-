@@ -289,6 +289,7 @@
           <button data-target="card-alerts">Alertas</button>
           <button data-target="card-wallets">Carteiras</button>
           <button data-target="card-suggestions">Sugestões de operação</button>
+          <button data-target="card-risk">Dominus Risk (limites de segurança)</button>
           <hr style="border: none; border-top: 1px solid var(--border); margin: 4px 0;" />
           <button id="menu-update">Atualizar o sistema…</button>
           <a href="brokersakuma://open" id="menu-open-app">Abrir no aplicativo do Mac</a>
@@ -431,6 +432,15 @@
       carteira (Phantom, Jupiter, etc.), fora deste sistema.
     </p>
     <ul class="plain" id="suggestions-list"><li class="hint">Nenhuma sugestão ainda.</li></ul>
+  </div>
+
+  <div class="card" id="card-risk" hidden>
+    <strong>Dominus Risk</strong>
+    <p class="hint">
+      Os limites de segurança que toda operação simulada já passa por baixo dos panos,
+      antes de ser aceita — isto é só leitura, ninguém (nem você) muda isso por aqui.
+    </p>
+    <ul class="plain" id="risk-policy-list"><li class="hint">Carregando…</li></ul>
   </div>
 </div>
 
@@ -708,6 +718,31 @@
       list.querySelectorAll("button[data-suggestion-id]").forEach((btn) => {
         btn.addEventListener("click", () => updateSuggestionStatus(btn.dataset.suggestionId, btn.dataset.action));
       });
+    } catch (err) {
+      list.innerHTML = '<li class="hint">' + escapeHtml(messageFor(err)) + "</li>";
+    }
+  }
+
+  const RISK_POLICY_LABELS = [
+    ["max_position_usd", "Tamanho máximo por operação", fmtUsd],
+    ["max_daily_loss_usd", "Perda máxima permitida por dia", fmtUsd],
+    ["max_drawdown_pct", "Queda máxima tolerada (drawdown)", (v) => Math.round(v * 100) + "%"],
+    ["max_slippage_pct", "Deslizamento de preço máximo aceito", (v) => Math.round(v * 100) + "%"],
+    ["min_liquidity_usd", "Liquidez mínima exigida do lançamento", fmtUsd],
+    ["max_trades_per_day", "Operações máximas por dia", (v) => String(v)],
+    ["max_consecutive_losses", "Perdas seguidas máximas antes de parar", (v) => String(v)],
+    ["min_wallet_balance_usd", "Saldo mínimo exigido da carteira", fmtUsd],
+    ["per_bot_max_loss_usd", "Perda máxima de um bot (o que o mata)", fmtUsd],
+  ];
+
+  async function refreshRiskPolicy() {
+    const list = document.getElementById("risk-policy-list");
+    try {
+      const policy = await api("/api/system/risk-policy");
+      list.innerHTML = RISK_POLICY_LABELS.map(
+        ([key, label, format]) =>
+          "<li><span>" + escapeHtml(label) + "</span><span>" + escapeHtml(format(policy[key])) + "</span></li>"
+      ).join("");
     } catch (err) {
       list.innerHTML = '<li class="hint">' + escapeHtml(messageFor(err)) + "</li>";
     }
@@ -1047,6 +1082,7 @@
     await refreshChart();
     await refreshTicker();
     await refreshSuggestions();
+    await refreshRiskPolicy();
   }
 
   function initSettingsForm() {

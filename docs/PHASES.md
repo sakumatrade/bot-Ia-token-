@@ -1434,6 +1434,50 @@ Trade panel, metrics, menu) works exactly as before. 244 backend tests
 still pass unchanged — this phase touched no application logic, only
 strings.
 
+## Rebrand, phase 5: Dominus Risk
+
+Next phase per the user's own plan, confirmed before starting ("Dominus
+Risk primeiro"). Unlike Phase 3 (pure text), this phase adds real
+substance: the existing `RiskPolicyConfig`/`MaximumLossPolicyConfig` — the
+limits `RiskEngine` and `MaximumLossPolicy` already enforce on every
+simulated order — were entirely invisible to the user before now, set
+once via env vars/`.env` and never surfaced anywhere. "Dominus Risk" is
+this made visible, read-only, nothing more: no new engine, no changed
+behavior, just transparency about what already protects the simulated
+capital.
+
+- `GET /api/system/risk-policy` (new `RiskPolicySummary` schema) returns
+  both configs' fields as one flat object. Deliberately read-only (a GET
+  with no corresponding POST) and requires no special permission beyond
+  any valid key — the read-only viewer key can see it too, which is the
+  point: showing someone learning exactly what keeps the simulation safe
+  is exactly the kind of transparency that key exists for.
+- Browser dashboard: a new "Dominus Risk" card (menu-accessible, like
+  "Sugestões de operação") listing all nine limits in plain language
+  (position size cap, daily loss cap, drawdown, slippage, minimum
+  liquidity, trades/day, consecutive-loss cap, minimum wallet balance,
+  per-bot max loss). Explicitly **not** added to the viewer-mode hidden
+  list from the read-only-key phase — a viewer seeing these limits is
+  the intended behavior, not something to hide.
+- macOS app: the same data, in a new `riskPolicySection` under the
+  existing metrics/bots/auto-trading sections — `APIClient.fetchRiskPolicy`,
+  `AppState.riskPolicy`/`refreshRiskPolicy()`, and a new
+  `RiskPolicySummary` Codable struct in `DashboardModels.swift` (relies
+  on the existing `.convertFromSnakeCase` decoder, no custom keys needed).
+- Also fixed one stray "Broker Sakuma" comment in `APIClient.swift` that
+  Phase 3's audit had missed (a doc-comment on the actor's own
+  declaration, never caught by that grep because it wasn't run again
+  after intermediate edits) — same visual-only rename as Phase 3, no
+  behavior change.
+
+Verified: 3 new backend tests (auth required, exact configured values
+round-trip correctly, the read-only key can read it too) — 247 total
+passing. Dashboard HTML's `<div>` balance and embedded JS syntax
+re-checked. Every touched Swift file's brace/paren counts verified
+balanced (no local Swift toolchain in this environment — real
+compilation is confirmed via the GitHub Actions macOS build, same as
+every other Swift change this project has made).
+
 ## macOS app — what the user needs to do on their own Mac
 
 Compiling in CI proves the code is correct; it does not give you a

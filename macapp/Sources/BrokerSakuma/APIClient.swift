@@ -9,7 +9,7 @@ enum SystemAction: String {
     case killSwitch = "kill-switch"
 }
 
-/// Talks to the Broker Sakuma Local API. Never fabricates a response: any
+/// Talks to the DominusBot Local API. Never fabricates a response: any
 /// failure to reach the backend or parse its response surfaces as a typed
 /// `APIError`, which the UI maps to a beginner-friendly message and a
 /// safe "disconnected" state — it never falls back to fake/simulated
@@ -47,6 +47,13 @@ actor APIClient {
     func fetchAutoTradingStatus(apiKey: String) async throws -> AutoTradingStatus {
         let data = try await get(path: "api/system/auto-trading", apiKey: apiKey)
         return try decode(AutoTradingStatus.self, from: data)
+    }
+
+    /// "Dominus Risk": the limits every simulated order already passes
+    /// through, read-only — works fine with the read-only viewer key too.
+    func fetchRiskPolicy(apiKey: String) async throws -> RiskPolicySummary {
+        let data = try await get(path: "api/system/risk-policy", apiKey: apiKey)
+        return try decode(RiskPolicySummary.self, from: data)
     }
 
     func setAutoTrading(enabled: Bool, apiKey: String) async throws -> AutoTradingStatus {

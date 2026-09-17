@@ -63,3 +63,19 @@ struct AutoTradingStatus: Codable, Equatable {
     let launchesPerCycle: Int
     let positionFractionOfCapital: Double
 }
+
+/// Mirrors `api/schemas.py`'s `RiskPolicySummary` ("Dominus Risk" — the
+/// limits every simulated order already passes through). Read-only:
+/// nothing in this app ever changes these values.
+struct RiskPolicySummary: Codable, Equatable {
+    let maxPositionUsd: Double
+    let maxDailyLossUsd: Double
+    let maxDrawdownPct: Double
+    let maxSlippagePct: Double
+    let minLiquidityUsd: Double
+    let maxTradesPerDay: Int
+    let maxConsecutiveLosses: Int
+    let minWalletBalanceUsd: Double
+    let perBotMaxLossUsd: Double
+    let perBotMaxLossPctOfCapital: Double?
+}

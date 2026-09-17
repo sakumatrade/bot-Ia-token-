@@ -17,6 +17,7 @@ final class AppState: ObservableObject {
     @Published private(set) var dashboard: DashboardSummary?
     @Published private(set) var bots: [BotSummary] = []
     @Published private(set) var autoTradingStatus: AutoTradingStatus?
+    @Published private(set) var riskPolicy: RiskPolicySummary?
     @Published private(set) var lastError: Error?
     @Published private(set) var isLoading = false
     @Published var displayMode: DisplayMode = .simple
@@ -74,6 +75,7 @@ final class AppState: ObservableObject {
         }
         await refreshBots()
         await refreshAutoTradingStatus()
+        await refreshRiskPolicy()
     }
 
     func sendSystemAction(_ action: SystemAction) async {
@@ -105,6 +107,13 @@ final class AppState: ObservableObject {
         guard !apiKey.isEmpty else { return }
         if let status = try? await apiClient.fetchAutoTradingStatus(apiKey: apiKey) {
             autoTradingStatus = status
+        }
+    }
+
+    func refreshRiskPolicy() async {
+        guard !apiKey.isEmpty else { return }
+        if let policy = try? await apiClient.fetchRiskPolicy(apiKey: apiKey) {
+            riskPolicy = policy
         }
     }
 

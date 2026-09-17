@@ -249,6 +249,27 @@ class SystemActionResponse(BaseModel):
     system_state: str
 
 
+class RiskPolicySummary(BaseModel):
+    """The Dominus Risk limits every simulated order already passes
+    through (RiskEngine + MaximumLossPolicy — see engines/risk_engine.py,
+    engines/max_loss_policy.py). Read-only: this reflects config the
+    operator sets before starting the server, never something changed
+    from the dashboard, so a viewer with the read-only key can see it
+    too — full transparency about what protects the simulated capital,
+    nothing here can be altered from a GET."""
+
+    max_position_usd: float
+    max_daily_loss_usd: float
+    max_drawdown_pct: float
+    max_slippage_pct: float
+    min_liquidity_usd: float
+    max_trades_per_day: int
+    max_consecutive_losses: int
+    min_wallet_balance_usd: float
+    per_bot_max_loss_usd: float
+    per_bot_max_loss_pct_of_capital: float | None
+
+
 class AutoTradingStatusResponse(BaseModel):
     """Live status of the autonomous PAPER-trading loop — ``running``
     reflects whether the background task is actually active right now,

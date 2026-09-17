@@ -18,6 +18,7 @@ struct DashboardView: View {
                     createBotSection
                     botsSection
                     autoTradingSection
+                    riskPolicySection
                 } else {
                     disconnectedState
                 }
@@ -212,6 +213,50 @@ struct DashboardView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.secondary.opacity(0.08))
         .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    /// "Dominus Risk": the limits every simulated order already passes
+    /// through (RiskEngine + MaximumLossPolicy), shown read-only — this
+    /// app never changes them, it only displays what protects the
+    /// simulated capital.
+    private var riskPolicySection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Dominus Risk").font(.headline)
+            Text("Limites de segurança que toda operação simulada já passa por baixo dos panos.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            if let policy = appState.riskPolicy {
+                VStack(alignment: .leading, spacing: 4) {
+                    riskRow("Tamanho máximo por operação", currency(policy.maxPositionUsd))
+                    riskRow("Perda máxima permitida por dia", currency(policy.maxDailyLossUsd))
+                    riskRow("Queda máxima tolerada (drawdown)", percent(policy.maxDrawdownPct))
+                    riskRow("Deslizamento de preço máximo aceito", percent(policy.maxSlippagePct))
+                    riskRow("Liquidez mínima exigida do lançamento", currency(policy.minLiquidityUsd))
+                    riskRow("Operações máximas por dia", "\(policy.maxTradesPerDay)")
+                    riskRow("Perdas seguidas máximas antes de parar", "\(policy.maxConsecutiveLosses)")
+                    riskRow("Saldo mínimo exigido da carteira", currency(policy.minWalletBalanceUsd))
+                    riskRow("Perda máxima de um bot (o que o mata)", currency(policy.perBotMaxLossUsd))
+                }
+            } else {
+                Text("Carregando…").font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.secondary.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    private func riskRow(_ label: String, _ value: String) -> some View {
+        HStack {
+            Text(label).font(.caption).foregroundStyle(.secondary)
+            Spacer()
+            Text(value).font(.caption.weight(.medium))
+        }
+    }
+
+    private func percent(_ value: Double) -> String {
+        (value).formatted(.percent.precision(.fractionLength(0)))
     }
 }
 

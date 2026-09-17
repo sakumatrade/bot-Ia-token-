@@ -9,6 +9,7 @@ from broker_sakuma.api.deps import get_db, get_settings, require_api_key
 from broker_sakuma.api.schemas import (
     AutoTradingStatusResponse,
     KillSwitchRequest,
+    RiskPolicySummary,
     RunCycleResponse,
     SystemActionResponse,
     UpdateAutoTradingRequest,
@@ -34,6 +35,26 @@ def whoami(
     read_only_key = settings.local_api.read_only_api_key
     is_read_only = bool(read_only_key) and api_key == read_only_key
     return {"read_only": is_read_only}
+
+
+@router.get("/risk-policy", response_model=RiskPolicySummary)
+def get_risk_policy(settings: Settings = Depends(get_settings)) -> RiskPolicySummary:
+    """Dominus Risk: the limits every simulated order already passes
+    through, exposed read-only so anyone (including a read-only viewer)
+    can see exactly what protects the simulated capital."""
+
+    return RiskPolicySummary(
+        max_position_usd=settings.risk.max_position_usd,
+        max_daily_loss_usd=settings.risk.max_daily_loss_usd,
+        max_drawdown_pct=settings.risk.max_drawdown_pct,
+        max_slippage_pct=settings.risk.max_slippage_pct,
+        min_liquidity_usd=settings.risk.min_liquidity_usd,
+        max_trades_per_day=settings.risk.max_trades_per_day,
+        max_consecutive_losses=settings.risk.max_consecutive_losses,
+        min_wallet_balance_usd=settings.risk.min_wallet_balance_usd,
+        per_bot_max_loss_usd=settings.max_loss.per_bot_max_loss_usd,
+        per_bot_max_loss_pct_of_capital=settings.max_loss.per_bot_max_loss_pct_of_capital,
+    )
 
 
 @router.post("/start", response_model=SystemActionResponse)
