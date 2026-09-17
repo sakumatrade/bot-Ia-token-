@@ -167,6 +167,28 @@ added this way is always `WATCH_ONLY`. Nothing here can sign or send a
 real transaction; see `docs/ARCHITECTURE.md#security` and
 `engines/signer.py` for why that's a structural guarantee, not a policy.
 
+## Trade suggestions (human decides and executes everything, manually)
+
+Once you have a watch-only wallet registered (above) and the autonomous
+loop or `/run-cycle` is running, `engines/trade_suggestion_engine.py`
+turns promising WATCH decisions into plain-language suggestions —
+reusing the same risk triage and pattern-learning confidence the
+simulated bots already use, but never executing anything. There is no
+suggested dollar amount: sizing a real position, and acting on it at
+all, is entirely your own decision, made manually in your own wallet
+software (Phantom, Jupiter, etc.) — this system has no signer and never
+will (see `engines/signer.py`).
+
+```bash
+curl -s -H "X-API-Key: $API_KEY" http://127.0.0.1:8765/api/trade-suggestions?status=PENDING
+curl -s -X POST -H "X-API-Key: $API_KEY" http://127.0.0.1:8765/api/trade-suggestions/SUGGESTION_ID/dismiss
+curl -s -X POST -H "X-API-Key: $API_KEY" http://127.0.0.1:8765/api/trade-suggestions/SUGGESTION_ID/mark-done
+```
+
+The browser dashboard's "Sugestões de operação" card shows the same
+list with Dispensar/Já fiz manualmente buttons — `mark-done` is just
+your own tracking and never triggers anything.
+
 ## Creating and activating a bot
 
 The browser dashboard's "Criar bot" card does this with a button: it

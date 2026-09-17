@@ -104,6 +104,17 @@ class PositionStatus(str, enum.Enum):
     CLOSED = "CLOSED"
 
 
+class TradeSuggestionStatus(str, enum.Enum):
+    """A suggestion is never executed by this codebase (spec section 61 —
+    no signer exists, see engines/signer.py). PENDING is the only status
+    the system sets itself; the other two only ever come from the user
+    reviewing it themselves."""
+
+    PENDING = "PENDING"
+    DISMISSED = "DISMISSED"
+    DONE_MANUALLY = "DONE_MANUALLY"
+
+
 class WalletType(str, enum.Enum):
     """Wallet roles (spec section 32)."""
 

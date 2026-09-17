@@ -30,6 +30,12 @@ so this is the one place in the codebase that creates a `PostMortem`
 automatically, grounded only in what this cycle actually observed
 (the liquidity, the entry/exit price, which thesis was active), never
 fabricated detail.
+
+Every WATCH decision also goes through
+`engines/trade_suggestion_engine.py`, regardless of whether any bot ends
+up trading it — that engine's suggestions are for the user's own real
+(watch-only) wallet, a separate concern from this cycle's simulated
+bots, and it never executes anything either.
 """
 
 from __future__ import annotations
@@ -49,6 +55,7 @@ from broker_sakuma.db import models
 from broker_sakuma.engines.pattern_learning import PatternLearner
 from broker_sakuma.engines.post_mortem_engine import BotPostMortemEngine
 from broker_sakuma.engines.telegram_notifications import ProfitNotifier
+from broker_sakuma.engines.trade_suggestion_engine import TradeSuggestionEngine
 from broker_sakuma.paper.paper_executor import PaperExecutor, PaperOrderRequest
 
 
@@ -74,6 +81,7 @@ class AutonomousTradingCycle:
         self.monitor = PumpFunMonitor(session, provider, risk_config)
         self.executor = PaperExecutor(session, risk_config, notifier=notifier)
         self.learner = PatternLearner(session)
+        self.suggestion_engine = TradeSuggestionEngine(session)
 
     def _tradeable_bots(self) -> list[models.Bot]:
         """Active bots with a thesis that has actually started (spec
@@ -100,6 +108,7 @@ class AutonomousTradingCycle:
         for decision in decisions:
             if decision.action != "WATCH":
                 continue
+            self.suggestion_engine.suggest_from_decision(decision)
             for bot in bots:
                 if bot.id in result.bots_died or bot.state == BotState.DEAD:
                     continue

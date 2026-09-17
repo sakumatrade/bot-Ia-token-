@@ -1124,6 +1124,46 @@ reaches the running app afterward — a human-initiated (or at least
 human-supervised) step in between, not a self-modifying production
 system.
 
+## Post-Phase-17 addition: trade suggestions instead of human-approved execution
+
+After the PinkSale request (declined for the same reasons as every
+Pump.fun request before it), the user proposed a variant meant to
+address the risk directly: "I'll authorize every buy/sell myself, I'll
+enter the amount, the bot only has access to my wallet." Restated once
+more, more explicitly: the bot suggests, but *I'm* the one who clicks
+activate after reading why.
+
+The technical answer stayed the same regardless of who clicks the
+button: executing a real trade — even one a human approved first — still
+requires this codebase to hold or invoke a real signer against a real
+wallet, which is the exact piece that has never existed here and won't
+(`engines/signer.py`). Human approval reduces *automation* risk, not
+*custody* risk, and doesn't add the testing or security audit this
+system has never had. So instead of building approval-gated execution,
+the actual deliverable is `engines/trade_suggestion_engine.py`: it
+reuses `PumpFunMonitor`'s triage and `PatternLearner`'s confidence
+(no new logic duplicated) to turn a WATCH decision into a plain-language
+`TradeSuggestion` — a new table (`trade_suggestions`, safe to add: new
+tables need no migration) tied to whichever watch-only wallet the user
+has registered. Deliberately absent: any suggested dollar amount —
+sizing a real position, per the user's own words ("eu irei inserir o
+valor"), is entirely their decision, and "acting on it" means doing so
+manually in their own wallet software, never inside this codebase.
+`AutonomousTradingCycle.run_once()` calls it for every WATCH decision
+regardless of whether any simulated bot ends up trading that decision —
+a separate concern from the simulated $5-rule bots.
+
+New endpoints (`GET /api/trade-suggestions`, `POST .../dismiss`, `POST
+.../mark-done`) and a browser dashboard card ("Sugestões de operação")
+round it out — `mark-done` is the user's own tracking that they acted on
+it elsewhere; it never triggers anything. Verified end-to-end against a
+live server: registered a wallet, ran a cycle, confirmed the exact
+request sequence the dashboard's JS makes returns real, well-formed
+suggestions with the expected reasoning text, then dismissed one via the
+API. 8 new backend tests cover the no-wallet/no-suggestion case, the
+IGNORE-decision/no-suggestion case, auth on all three endpoints, the
+full add-wallet→run-cycle→dismiss flow, and the status filter.
+
 ## macOS app — what the user needs to do on their own Mac
 
 Compiling in CI proves the code is correct; it does not give you a

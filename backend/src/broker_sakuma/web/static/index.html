@@ -215,6 +215,7 @@
           <button data-target="card-chart">Gráfico do bot</button>
           <button data-target="card-alerts">Alertas</button>
           <button data-target="card-wallets">Carteiras</button>
+          <button data-target="card-suggestions">Sugestões de operação</button>
           <hr style="border: none; border-top: 1px solid var(--border); margin: 4px 0;" />
           <button id="menu-update">Atualizar o sistema…</button>
           <a href="brokersakuma://open" id="menu-open-app">Abrir no aplicativo do Mac</a>
@@ -335,6 +336,16 @@
         <span id="wallet-status" class="hint"></span>
       </div>
     </form>
+  </div>
+
+  <div class="card" id="card-suggestions" hidden>
+    <strong>Sugestões de operação</strong>
+    <p class="hint">
+      Ideias baseadas em simulação, para você avaliar — o sistema nunca decide o valor
+      nem executa nada sozinho. Se quiser agir, faça isso manualmente na sua própria
+      carteira (Phantom, Jupiter, etc.), fora deste sistema.
+    </p>
+    <ul class="plain" id="suggestions-list"><li class="hint">Nenhuma sugestão ainda.</li></ul>
   </div>
 </div>
 
@@ -556,6 +567,42 @@
             "</span></li>"
         )
         .join("");
+    } catch (err) {
+      list.innerHTML = '<li class="hint">' + escapeHtml(messageFor(err)) + "</li>";
+    }
+  }
+
+  async function updateSuggestionStatus(id, action) {
+    try {
+      await api("/api/trade-suggestions/" + id + "/" + action, { method: "POST" });
+      await refreshSuggestions();
+    } catch (err) {
+      alert(messageFor(err));
+    }
+  }
+
+  async function refreshSuggestions() {
+    const list = document.getElementById("suggestions-list");
+    try {
+      const suggestions = await api("/api/trade-suggestions?status=PENDING&limit=20");
+      if (!suggestions.length) {
+        list.innerHTML = '<li class="hint">Nenhuma sugestão pendente no momento.</li>';
+        return;
+      }
+      list.innerHTML = suggestions
+        .map(
+          (s) =>
+            '<li style="flex-direction: column; align-items: flex-start; gap: 6px;">' +
+            '<span>' + escapeHtml(s.reasoning) + "</span>" +
+            '<span class="actions" style="margin-top: 0;">' +
+            '<button data-suggestion-id="' + escapeHtml(s.id) + '" data-action="dismiss">Dispensar</button>' +
+            '<button data-suggestion-id="' + escapeHtml(s.id) + '" data-action="mark-done">Já fiz manualmente</button>' +
+            "</span></li>"
+        )
+        .join("");
+      list.querySelectorAll("button[data-suggestion-id]").forEach((btn) => {
+        btn.addEventListener("click", () => updateSuggestionStatus(btn.dataset.suggestionId, btn.dataset.action));
+      });
     } catch (err) {
       list.innerHTML = '<li class="hint">' + escapeHtml(messageFor(err)) + "</li>";
     }
@@ -789,6 +836,7 @@
     await refreshChartBotOptions();
     await refreshChart();
     await refreshTicker();
+    await refreshSuggestions();
   }
 
   function initSettingsForm() {

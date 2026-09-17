@@ -197,6 +197,29 @@ class ActivateBotResponse(BaseModel):
     initial_capital_usd: float
 
 
+class TradeSuggestionSummary(BaseModel):
+    """A plain-language idea, never an instruction to execute anything —
+    see engines/trade_suggestion_engine.py. There is deliberately no
+    suggested dollar amount: sizing a real position, if the user chooses
+    to act on this at all, is entirely their own decision, made manually
+    in their own wallet software, outside this system."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    wallet_id: str | None
+    token_id: str | None
+    side: str
+    reasoning: str
+    risk_score: float | None
+    status: str
+    created_at: datetime
+
+
+class UpdateTradeSuggestionStatusRequest(BaseModel):
+    status: str
+
+
 class GrowthResponse(BaseModel):
     max_bots: int
     max_generations: int

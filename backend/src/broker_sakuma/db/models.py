@@ -31,6 +31,7 @@ from broker_sakuma.core.enums import (
     TelegramRole,
     ThesisState,
     TradeSide,
+    TradeSuggestionStatus,
     TransferStatus,
     WalletKind,
     WalletType,
@@ -422,3 +423,21 @@ class ResearchReport(Base, IdMixin, TimestampMixin):
     status: Mapped[str] = mapped_column(String(32), default="RESEARCH_ONLY")
     summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     evidence: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+
+
+class TradeSuggestion(Base, IdMixin, TimestampMixin):
+    """A human-readable trade idea the system proposes but never acts on
+    (spec section 61: no signer exists — see engines/signer.py — and none
+    will be built). There is deliberately no amount the system suggests:
+    sizing a real position is left entirely to whoever reviews this, and
+    "acting on it" means doing so manually in their own wallet software,
+    outside this codebase."""
+
+    __tablename__ = "trade_suggestions"
+
+    wallet_id: Mapped[Optional[str]] = mapped_column(ForeignKey("wallets.id"), nullable=True)
+    token_id: Mapped[Optional[str]] = mapped_column(ForeignKey("tokens.id"), nullable=True)
+    side: Mapped[TradeSide] = mapped_column(String(8), default=TradeSide.BUY)
+    reasoning: Mapped[str] = mapped_column(Text)
+    risk_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    status: Mapped[TradeSuggestionStatus] = mapped_column(String(16), default=TradeSuggestionStatus.PENDING)
