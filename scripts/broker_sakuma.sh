@@ -11,12 +11,17 @@ set -uo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 KEY_FILE="$ROOT_DIR/backend/.local_api.key"
+READONLY_KEY_FILE="$ROOT_DIR/backend/.local_readonly_api.key"
 PORT="${PORT:-8765}"
 API_URL="http://127.0.0.1:$PORT"
 LOG_FILE="$ROOT_DIR/backend/server.log"
 
 api_key() {
   [ -f "$KEY_FILE" ] && cat "$KEY_FILE" || echo ""
+}
+
+readonly_key() {
+  [ -f "$READONLY_KEY_FILE" ] && cat "$READONLY_KEY_FILE" || echo ""
 }
 
 server_up() {
@@ -135,6 +140,34 @@ open_dashboard() {
   command -v open >/dev/null 2>&1 && open "$API_URL/dashboard" 2>/dev/null
 }
 
+# Prints everything needed to invite someone to WATCH the (simulated)
+# bot learn, with zero ability to change anything - the backend itself
+# rejects every write with this key (api/deps.py::require_api_key), this
+# is never a signer, wallet, or deposit of any kind, ever.
+show_viewer_link() {
+  if [ -z "$(readonly_key)" ]; then
+    echo "Ainda nao encontrei a chave somente-leitura. Inicie o servidor pela opcao 1 primeiro."
+    return
+  fi
+  LAN_IP="$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || echo "SEU_IP_LOCAL")"
+  echo ""
+  echo "===== Convidar alguem para SO ACOMPANHAR (sem poder mudar nada) ====="
+  echo "Chave somente-leitura: $(readonly_key)"
+  echo ""
+  echo "Por padrao o servidor so responde neste Mac (127.0.0.1) — ninguem de fora"
+  echo "consegue ver o painel ainda. Para uma pessoa na MESMA rede Wi-Fi conseguir"
+  echo "acessar, pare o servidor e reinicie assim:"
+  echo "  HOST=0.0.0.0 ./scripts/start_server.sh"
+  echo ""
+  echo "Depois, mande para essa pessoa:"
+  echo "  Endereco: http://$LAN_IP:$PORT/dashboard"
+  echo "  Chave (cole em \"Configuracoes da conexao\" no painel): $(readonly_key)"
+  echo ""
+  echo "IMPORTANTE: nunca compartilhe a chave PRINCIPAL, so essa somente-leitura."
+  echo "Isso deixa o painel visivel pra quem estiver na mesma rede — nao ha deposito,"
+  echo "carteira real, nem qualquer jeito de essa pessoa mudar algo no sistema."
+}
+
 AUTO_UPDATE_PIDFILE="$ROOT_DIR/backend/.auto_update.pid"
 
 auto_update_running() {
@@ -172,6 +205,7 @@ while true; do
   else
     echo "7) Ligar atualizacao automatica do sistema (verifica sozinho e atualiza)"
   fi
+  echo "8) Convidar alguem para so acompanhar (link somente-leitura, sem deposito)"
   echo "0) Sair"
   read -rp "Escolha uma opcao: " OPTION
   case "$OPTION" in
@@ -182,6 +216,7 @@ while true; do
     5) toggle_auto_trading ;;
     6) open_dashboard ;;
     7) toggle_auto_update ;;
+    8) show_viewer_link ;;
     0) echo "Ate mais!"; exit 0 ;;
     *) echo "Opcao invalida." ;;
   esac

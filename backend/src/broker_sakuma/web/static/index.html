@@ -228,6 +228,34 @@
     background: rgba(52, 199, 89, 0.12);
     font-size: 13px;
   }
+  #viewer-banner {
+    display: none;
+    background: var(--blue);
+    color: white;
+    font-weight: 700;
+    font-size: 13px;
+    text-align: center;
+    padding: 8px 12px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+  }
+  /* Every state-changing control disappears for a read-only viewer - the
+     backend rejects these calls outright regardless (api/deps.py), this
+     is purely so a viewer never sees a button that would just 403. */
+  body.viewer-mode #card-create-bot,
+  body.viewer-mode [data-target="card-create-bot"],
+  body.viewer-mode #btn-daytrade-toggle,
+  body.viewer-mode #card-daytrade details,
+  body.viewer-mode #content .actions,
+  body.viewer-mode .btn-bot-toggle,
+  body.viewer-mode #suggestions-list .actions,
+  body.viewer-mode .growth-banner .actions,
+  body.viewer-mode #add-wallet-form {
+    display: none !important;
+  }
+  body.viewer-mode #viewer-banner {
+    display: block;
+  }
 </style>
 </head>
 <body>
@@ -235,6 +263,7 @@
   <div class="sim-banner">
     🧪 Modo de teste
   </div>
+  <div id="viewer-banner">👀 Modo visualização — você está só acompanhando, sem poder alterar nada</div>
   <div class="ticker-wrap">
     <span class="ticker-label">🧪 Monitorando agora (simulado):</span>
     <div class="ticker-track-outer">
@@ -313,7 +342,9 @@
           <span id="save-status" class="hint"></span>
         </div>
         <p class="hint">
-          Esta chave é a mesma configurada no backend (BROKER_SAKUMA_LOCAL_API__API_KEY).
+          Esta chave é a mesma configurada no backend (BROKER_SAKUMA_LOCAL_API__API_KEY),
+          ou a chave somente-leitura (BROKER_SAKUMA_LOCAL_API__READ_ONLY_API_KEY) se você
+          só vai acompanhar, sem poder mudar nada.
           Nunca é uma frase de recuperação ou chave privada de carteira — esta página nunca lida com isso.
           Fica guardada só neste navegador (localStorage), nunca é enviada a mais ninguém além do seu próprio backend local.
         </p>
@@ -402,7 +433,12 @@
 
 <script>
 (function () {
-  const DEFAULT_BASE_URL = "http://127.0.0.1:8765";
+  // The dashboard is always served by the same backend it talks to, so
+  // its own origin is the correct default - this matters once the server
+  // is reachable from another device on the network (HOST=0.0.0.0):
+  // a hardcoded "127.0.0.1" default would make that other device try to
+  // reach itself instead of this Mac.
+  const DEFAULT_BASE_URL = window.location.origin;
 
   function loadSettings() {
     return {
@@ -979,7 +1015,19 @@
     }
   }
 
+  async function refreshViewerMode() {
+    try {
+      const who = await api("/api/system/whoami");
+      document.body.classList.toggle("viewer-mode", who.read_only);
+    } catch (err) {
+      // No key configured yet, or backend unreachable - not a viewer
+      // decision to make here, refresh()'s own error handling covers it.
+      document.body.classList.remove("viewer-mode");
+    }
+  }
+
   async function refresh() {
+    await refreshViewerMode();
     try {
       const dashboard = await api("/api/dashboard");
       renderDashboard(dashboard);

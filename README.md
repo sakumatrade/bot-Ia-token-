@@ -133,6 +133,25 @@ sets `API_KEY="..."` by hand can instead read the saved key:
 API_KEY="$(cat backend/.local_api.key)"
 ```
 
+### Read-only key, for people who only watch
+
+`start_server.sh` also generates a second, weaker key
+(`backend/.local_readonly_api.key`, same as the main one: git-ignored,
+persisted across restarts). It authenticates GET requests exactly like
+the main key, but the backend rejects any state-changing request made
+with it outright (`api/deps.py::require_api_key`) — there is no deposit,
+no wallet, and no way for someone using it to change anything, ever. It's
+meant to be handed to someone who wants to watch the simulated bot learn,
+never anything financial (see `docs/PHASES.md` for why an actual
+deposit-based "clients watch the bot" feature was declined).
+
+By default the server only answers on this Mac (`127.0.0.1`) — nobody
+else can reach it. To let someone on the same network view it,
+run `HOST=0.0.0.0 ./scripts/start_server.sh` instead, then give them
+`http://<this-Mac's-LAN-IP>:8765/dashboard` and the read-only key to
+paste into "Configurações da conexão". `broker_sakuma.sh`'s menu option
+8 prints all of this for you, including the LAN IP.
+
 ## Browser dashboard (works on any OS, no Xcode needed)
 
 With the Local API running (above), open in any browser:

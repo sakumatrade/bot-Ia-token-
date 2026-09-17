@@ -1305,6 +1305,70 @@ the no-suggestion-below-threshold/negative-average cases, one-suggestion-
 per-bucket, bucket independence, and the three endpoints' auth/shape/404
 behavior).
 
+## Declined: taking deposits from "clients" to watch the bot; built instead: a free, read-only viewer key
+
+The user wanted to open access to people who'd watch the bot learn and
+receive trading information, who would deposit money into the user's own
+wallet in exchange. Declined this outright, not just the usual "no real
+signer" boundary — the specific shape described (third parties depositing
+funds tied to a bot's performance/information, no license, no contract)
+is the structure of unregistered investment solicitation regardless of
+intent, and this codebase's simulated bot has no real connection to any
+deposited money anyway, which would make any such promise false on top
+of the licensing problem. Explained both reasons directly rather than
+just refusing.
+
+Built the safe version instead: a completely free, view-only way for
+someone to watch the simulated bot, with no deposit, no wallet, and no
+way to change anything — enforced by the backend itself, not just a
+friendlier UI.
+
+- `LocalAPIConfig.read_only_api_key`: a second, optional, weaker key.
+  `api/deps.py::require_api_key` now accepts either key, but a request
+  authenticated with the read-only key is rejected with 403 the instant
+  it isn't a GET — this happens in the one shared dependency every
+  router already used (`dependencies=[Depends(require_api_key)]`), so it
+  covers every existing and future endpoint with no per-route changes.
+- `scripts/start_server.sh` generates this key the same way it already
+  generates the main one (`backend/.local_readonly_api.key`, gitignored),
+  and prints both — clearly labeled which one is safe to share. Still
+  binds to 127.0.0.1 by default (nobody outside this Mac can reach it);
+  sharing with someone requires the user to deliberately opt in with
+  `HOST=0.0.0.0 ./scripts/start_server.sh`, spelled out in the script's
+  own header and in `broker_sakuma.sh`'s new option 8 ("Convidar alguem
+  para so acompanhar"), which prints the key, the Mac's LAN IP, and the
+  exact HOST=0.0.0.0 command needed — nothing here exposes anything
+  automatically.
+- `GET /api/system/whoami` lets the dashboard itself find out which key
+  it's using, so it can hide every state-changing control *before* a
+  viewer ever taps one and hits the 403 the backend enforces regardless.
+- Dashboard: a blue "👀 Modo visualização" banner appears, and CSS scoped
+  under a `body.viewer-mode` class hides the "Criar bot" card and its
+  menu entry, the Day Trade start/stop button and its advanced settings,
+  every pause/resume/kill-switch button, the wallet add form, and every
+  suggestion's action buttons — a viewer still sees the live metrics,
+  chart, ticker, bot list, and growth suggestions' text, just nothing
+  that changes state.
+- Fixed a real bug this surfaced: the dashboard's default API base URL
+  was hardcoded to `http://127.0.0.1:8765`, which would have silently
+  broken for anyone opening it from another device once `HOST=0.0.0.0`
+  is used (their browser would try to reach *their own* localhost
+  instead of the Mac's). Changed the default to `window.location.origin`
+  — correct for every case, since the dashboard is always served by the
+  exact backend it needs to talk to.
+
+Verified with a real headless browser side by side: the main key showed
+every control as always; the read-only key showed the banner and hid
+every one of the controls above (checked via computed visibility, not
+just DOM presence — the pause/resume button is still in the DOM, just
+`display: none`). Then, bypassing the UI entirely with a raw `fetch()`
+call using the read-only key, confirmed the backend itself returns 403 —
+the real boundary is server-side, the UI hiding is just so a viewer never
+sees a button that would only fail. 244 backend tests pass (6 new: both
+keys' read access, the read-only key's write rejection on two different
+endpoints, `whoami` reporting correctly for each key, and an unset
+read-only key config rejecting anything but the main key).
+
 ## macOS app — what the user needs to do on their own Mac
 
 Compiling in CI proves the code is correct; it does not give you a

@@ -147,9 +147,19 @@ class LocalAPIConfig(BaseModel):
     """Local API (spec section 38). No default API key is baked in: an
     unset key means the dependency rejects every request rather than
     silently running an unauthenticated local API.
+
+    ``read_only_api_key`` is a second, optional, weaker key meant to be
+    handed out to people who only watch the bot (e.g. someone learning by
+    observing it) — it authenticates GET requests exactly like the main
+    key, but every state-changing request is rejected outright
+    (``api/deps.py::require_api_key``), never silently ignored. There is
+    still no deposit, no wallet, and no way for a viewer to change
+    anything — this only ever controls whether a browser can *see* the
+    simulated dashboard, never money.
     """
 
     api_key: str | None = None
+    read_only_api_key: str | None = None
     allowed_origins: list[str] = Field(
         default_factory=lambda: ["http://127.0.0.1", "http://localhost"]
     )

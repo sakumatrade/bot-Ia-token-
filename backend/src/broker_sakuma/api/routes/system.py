@@ -21,6 +21,21 @@ from broker_sakuma.services.system_control_service import SystemControlService, 
 router = APIRouter(prefix="/system", tags=["system"], dependencies=[Depends(require_api_key)])
 
 
+@router.get("/whoami")
+def whoami(
+    api_key: str = Depends(require_api_key),
+    settings: Settings = Depends(get_settings),
+) -> dict[str, bool]:
+    """Lets the dashboard tell whether it's talking with the read-only
+    viewer key (see ``config.py::LocalAPIConfig.read_only_api_key``) so it
+    can hide every button that changes state, before a viewer ever tries
+    one and hits the 403 the backend already enforces regardless."""
+
+    read_only_key = settings.local_api.read_only_api_key
+    is_read_only = bool(read_only_key) and api_key == read_only_key
+    return {"read_only": is_read_only}
+
+
 @router.post("/start", response_model=SystemActionResponse)
 def start_system(db: Session = Depends(get_db)) -> SystemActionResponse:
     try:

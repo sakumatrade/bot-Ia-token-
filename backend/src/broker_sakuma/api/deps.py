@@ -35,10 +35,32 @@ def get_db(request: Request) -> Generator[Session, None, None]:
 
 
 def require_api_key(
+    request: Request,
     x_api_key: str | None = Header(default=None, alias="X-API-Key"),
     settings: Settings = Depends(get_settings),
 ) -> str:
+    """Accepts either the main (read-write) key or the optional read-only
+    key (spec: a free, view-only link for people watching the bot learn,
+    with no deposit and no way to change anything — see
+    ``read_only_api_key``'s own docstring). The read-only key is only ever
+    valid on a GET request; any state-changing request with it is
+    rejected the same as a missing key, never silently downgraded to a
+    no-op, so a route can never be mistakenly left writable for viewers
+    just because it forgot to check.
+    """
+
     configured_key = settings.local_api.api_key
-    if not configured_key or not x_api_key or not secrets.compare_digest(x_api_key, configured_key):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid or missing API key")
-    return x_api_key
+    read_only_key = settings.local_api.read_only_api_key
+
+    if configured_key and x_api_key and secrets.compare_digest(x_api_key, configured_key):
+        return x_api_key
+
+    if read_only_key and x_api_key and secrets.compare_digest(x_api_key, read_only_key):
+        if request.method != "GET":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="read-only API key cannot perform this action",
+            )
+        return x_api_key
+
+    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid or missing API key")
