@@ -25,7 +25,7 @@ class LineageEngine:
         self.growth_config = growth_config
         self.max_loss_config = max_loss_config
 
-    def create_mother_bot(self, name: str = "Mother Bot", initial_capital_usd: float = 0.0) -> models.Bot:
+    def create_mother_bot(self, name: str = "Dominus Core", initial_capital_usd: float = 0.0) -> models.Bot:
         mother = models.Bot(
             name=name,
             parent_id=None,

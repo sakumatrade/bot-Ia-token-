@@ -63,7 +63,7 @@ fail_if_error() {
   fi
 }
 
-echo "==> Verificando se a Mother Bot ja existe..."
+echo "==> Verificando se a Dominus Core ja existe..."
 response="$(request GET /api/bots)"
 http_code="$(echo "$response" | tail -n1)"
 body="$(echo "$response" | sed '$d')"
@@ -77,15 +77,15 @@ print(mothers[0]['id'] if mothers else '')
 " "$body")"
 
 if [ -z "$MOTHER_ID" ]; then
-  echo "==> Nenhuma Mother Bot encontrada. Criando uma com \$$MOTHER_INITIAL_CAPITAL simulados..."
-  response="$(request POST /api/bots/mother "{\"name\": \"Mother Bot\", \"initial_capital_usd\": $MOTHER_INITIAL_CAPITAL}")"
+  echo "==> Nenhuma Dominus Core encontrada. Criando uma com \$$MOTHER_INITIAL_CAPITAL simulados..."
+  response="$(request POST /api/bots/mother "{\"name\": \"Dominus Core\", \"initial_capital_usd\": $MOTHER_INITIAL_CAPITAL}")"
   http_code="$(echo "$response" | tail -n1)"
   body="$(echo "$response" | sed '$d')"
-  fail_if_error "$http_code" "$body" "criar Mother Bot"
+  fail_if_error "$http_code" "$body" "criar Dominus Core"
   MOTHER_ID="$(json_get "$body" id)"
-  echo "    Mother Bot criada: id=$MOTHER_ID"
+  echo "    Dominus Core criada: id=$MOTHER_ID"
 else
-  echo "    Mother Bot ja existe: id=$MOTHER_ID"
+  echo "    Dominus Core ja existe: id=$MOTHER_ID"
 fi
 
 echo "==> Criando um novo Son..."

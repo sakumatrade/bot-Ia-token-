@@ -46,6 +46,16 @@ def liquidity_bucket_tag(liquidity_usd: float) -> str:
     return f"{_PATTERN_TAG_PREFIX}{int(_LIQUIDITY_BUCKETS_USD[-1])}-plus"
 
 
+# One representative liquidity value per bucket `liquidity_bucket_tag` can
+# produce — reused instead of duplicating the boundary math, so Dominus
+# AI's "what buckets exist" list can never drift from the real buckets.
+_BUCKET_SAMPLE_LIQUIDITY_USD = [500.0, 1500.0, 2500.0, 4000.0, 6000.0]
+
+
+def all_bucket_tags() -> list[str]:
+    return [liquidity_bucket_tag(v) for v in _BUCKET_SAMPLE_LIQUIDITY_USD]
+
+
 class PatternLearner:
     def __init__(self, session, min_samples: int = 5):
         self.session = session
@@ -66,6 +76,12 @@ class PatternLearner:
         entries = self.memory.find_by_tags([tag])
         return [float(e.content) for e in entries if e.content is not None]
 
+    def _multiplier_from_samples(self, samples: list[float]) -> float:
+        if len(samples) < self.min_samples:
+            return 1.0
+        average = sum(samples) / len(samples)
+        return 1.0 + max(-0.5, min(0.5, average))
+
     def confidence_multiplier(self, liquidity_usd: float) -> float:
         """Neutral (1.0) until ``min_samples`` real outcomes exist for
         this bucket — one or two results are never treated as a pattern
@@ -78,12 +94,31 @@ class PatternLearner:
         """
 
         tag = liquidity_bucket_tag(liquidity_usd)
-        samples = self._samples_for(tag)
-        if len(samples) < self.min_samples:
-            return 1.0
+        return self._multiplier_from_samples(self._samples_for(tag))
 
-        average = sum(samples) / len(samples)
-        return 1.0 + max(-0.5, min(0.5, average))
+    def bucket_insights(self) -> list[dict[str, object]]:
+        """Dominus AI: one row per liquidity bucket with at least one real
+        (simulated) outcome so far — exactly what feeds
+        ``confidence_multiplier``, made visible instead of staying an
+        internal detail. Buckets with zero samples are omitted rather than
+        padded with fake "no data" rows (spec section 26/9: never claim
+        more insight than the evidence actually supports).
+        """
+
+        insights: list[dict[str, object]] = []
+        for tag in all_bucket_tags():
+            samples = self._samples_for(tag)
+            if not samples:
+                continue
+            insights.append(
+                {
+                    "liquidity_bucket_tag": tag,
+                    "samples_count": len(samples),
+                    "average_pnl_usd": sum(samples) / len(samples),
+                    "confidence_multiplier": self._multiplier_from_samples(samples),
+                }
+            )
+        return insights
 
     def check_growth_suggestion(self, liquidity_usd: float) -> models.GrowthSuggestion | None:
         """Once a liquidity bucket has enough real (simulated) round trips

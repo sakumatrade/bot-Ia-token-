@@ -18,6 +18,11 @@ final class AppState: ObservableObject {
     @Published private(set) var bots: [BotSummary] = []
     @Published private(set) var autoTradingStatus: AutoTradingStatus?
     @Published private(set) var riskPolicy: RiskPolicySummary?
+    @Published private(set) var reserves: [ReserveSummary] = []
+    @Published private(set) var loans: [BotLoanSummary] = []
+    @Published private(set) var protocols: [ProtocolSummary] = []
+    @Published private(set) var learningEvents: [LearningEventSummary] = []
+    @Published private(set) var patternInsights: [PatternInsightSummary] = []
     @Published private(set) var lastError: Error?
     @Published private(set) var isLoading = false
     @Published var displayMode: DisplayMode = .simple
@@ -76,6 +81,10 @@ final class AppState: ObservableObject {
         await refreshBots()
         await refreshAutoTradingStatus()
         await refreshRiskPolicy()
+        await refreshTreasury()
+        await refreshLab()
+        await refreshNetwork()
+        await refreshAI()
     }
 
     func sendSystemAction(_ action: SystemAction) async {
@@ -114,6 +123,43 @@ final class AppState: ObservableObject {
         guard !apiKey.isEmpty else { return }
         if let policy = try? await apiClient.fetchRiskPolicy(apiKey: apiKey) {
             riskPolicy = policy
+        }
+    }
+
+    /// Dominus Treasury: reserve + internal loan balances (spec sections
+    /// 17, 19). Best-effort, same as the other secondary sections.
+    func refreshTreasury() async {
+        guard !apiKey.isEmpty else { return }
+        if let fetched = try? await apiClient.fetchReserves(apiKey: apiKey) {
+            reserves = fetched
+        }
+        if let fetched = try? await apiClient.fetchLoans(apiKey: apiKey) {
+            loans = fetched
+        }
+    }
+
+    /// Dominus Lab: protocols the Research Lab has discovered (spec
+    /// sections 24/25).
+    func refreshLab() async {
+        guard !apiKey.isEmpty else { return }
+        if let fetched = try? await apiClient.fetchProtocols(apiKey: apiKey) {
+            protocols = fetched
+        }
+    }
+
+    /// Dominus Network: bot broadcasts/council verdicts (spec section 9).
+    func refreshNetwork() async {
+        guard !apiKey.isEmpty else { return }
+        if let fetched = try? await apiClient.fetchLearningEvents(apiKey: apiKey) {
+            learningEvents = fetched
+        }
+    }
+
+    /// Dominus AI: what PatternLearner has learned so far (spec section 26).
+    func refreshAI() async {
+        guard !apiKey.isEmpty else { return }
+        if let fetched = try? await apiClient.fetchPatternInsights(apiKey: apiKey) {
+            patternInsights = fetched
         }
     }
 

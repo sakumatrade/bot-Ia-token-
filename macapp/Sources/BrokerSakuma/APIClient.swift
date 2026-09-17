@@ -56,6 +56,43 @@ actor APIClient {
         return try decode(RiskPolicySummary.self, from: data)
     }
 
+    /// "Dominus Treasury": reserve balances (spec section 19).
+    func fetchReserves(apiKey: String) async throws -> [ReserveSummary] {
+        let data = try await get(path: "api/reserves", apiKey: apiKey)
+        return try decode([ReserveSummary].self, from: data)
+    }
+
+    /// "Dominus Treasury": internal loans from the Dominus Core to its
+    /// bots (spec section 17).
+    func fetchLoans(apiKey: String) async throws -> [BotLoanSummary] {
+        let data = try await get(path: "api/loans", apiKey: apiKey)
+        return try decode([BotLoanSummary].self, from: data)
+    }
+
+    /// "Dominus Lab": protocols the Research Lab has discovered and
+    /// scored (spec section 24/25).
+    func fetchProtocols(apiKey: String) async throws -> [ProtocolSummary] {
+        let data = try await get(path: "api/protocols", apiKey: apiKey)
+        return try decode([ProtocolSummary].self, from: data)
+    }
+
+    /// "Dominus Network": broadcasts between bots and council verdicts
+    /// (spec section 9). Caller trims to however many rows it displays -
+    /// `get(path:)` uses `appendingPathComponent`, which would mangle a
+    /// literal "?limit=" query string, so this fetches the (bounded-by-
+    /// the-backend-default) full list instead of trying to pass one.
+    func fetchLearningEvents(apiKey: String) async throws -> [LearningEventSummary] {
+        let data = try await get(path: "api/learning-events", apiKey: apiKey)
+        return try decode([LearningEventSummary].self, from: data)
+    }
+
+    /// "Dominus AI": what PatternLearner has actually learned so far
+    /// (spec section 26).
+    func fetchPatternInsights(apiKey: String) async throws -> [PatternInsightSummary] {
+        let data = try await get(path: "api/pattern-insights", apiKey: apiKey)
+        return try decode([PatternInsightSummary].self, from: data)
+    }
+
     func setAutoTrading(enabled: Bool, apiKey: String) async throws -> AutoTradingStatus {
         let data = try await post(path: "api/system/auto-trading", apiKey: apiKey, jsonBody: ["enabled": enabled])
         return try decode(AutoTradingStatus.self, from: data)
@@ -69,7 +106,7 @@ actor APIClient {
         _ = try await post(path: "api/bots/\(id)/resume", apiKey: apiKey)
     }
 
-    /// Creates the Mother Bot if one doesn't exist yet, spawns a Son, and
+    /// Creates the Dominus Core if one doesn't exist yet, spawns a Son, and
     /// activates it — funding it with the fixed $5 simulated stake (spec
     /// section 10's $5 rule). The same three endpoints
     /// `scripts/activate_bot.sh` and the browser dashboard's "Criar bot"
@@ -84,7 +121,7 @@ actor APIClient {
             let motherData = try await post(
                 path: "api/bots/mother",
                 apiKey: apiKey,
-                jsonBody: ["name": "Mother Bot", "initial_capital_usd": motherInitialCapitalUsd]
+                jsonBody: ["name": "Dominus Core", "initial_capital_usd": motherInitialCapitalUsd]
             )
             motherId = try decode(BotSummary.self, from: motherData).id
         }

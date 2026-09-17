@@ -290,6 +290,10 @@
           <button data-target="card-wallets">Carteiras</button>
           <button data-target="card-suggestions">Sugestões de operação</button>
           <button data-target="card-risk">Dominus Risk (limites de segurança)</button>
+          <button data-target="card-treasury">Dominus Treasury (reserva e empréstimos)</button>
+          <button data-target="card-lab">Dominus Lab (pesquisa de protocolos)</button>
+          <button data-target="card-network">Dominus Network (bots conversando)</button>
+          <button data-target="card-ai">Dominus AI (o que já foi aprendido)</button>
           <hr style="border: none; border-top: 1px solid var(--border); margin: 4px 0;" />
           <button id="menu-update">Atualizar o sistema…</button>
           <a href="brokersakuma://open" id="menu-open-app">Abrir no aplicativo do Mac</a>
@@ -363,7 +367,7 @@
   <div class="card" id="card-create-bot" hidden>
     <strong>Criar bot</strong>
     <p class="hint">
-      Cria (se ainda não existir) a Mother Bot com o capital simulado
+      Cria (se ainda não existir) a Dominus Core com o capital simulado
       informado, depois cria e ativa um novo Son com os $5 simulados da
       regra do $5 — o mesmo que <code>scripts/activate_bot.sh</code> faz
       pelo terminal.
@@ -371,7 +375,7 @@
     <form id="create-bot-form" class="settings-row" style="margin-top: 8px;">
       <label for="new-bot-name">Nome do novo bot (opcional)</label>
       <input id="new-bot-name" type="text" placeholder="Deixe em branco para automático" />
-      <label for="mother-initial-capital">Capital inicial simulado da Mother Bot (só usado na 1ª vez)</label>
+      <label for="mother-initial-capital">Capital inicial simulado da Dominus Core (só usado na 1ª vez)</label>
       <input id="mother-initial-capital" type="number" min="1" step="1" value="1000" />
       <div>
         <button id="btn-create-bot" type="submit" class="primary">Criar e ativar bot</button>
@@ -414,7 +418,7 @@
       <select id="wallet-type">
         <option value="RECEIVING_WALLET">Carteira de recebimento</option>
         <option value="BOT_WALLET">Carteira de um bot</option>
-        <option value="MOTHER_WALLET">Carteira da Mother Bot</option>
+        <option value="MOTHER_WALLET">Carteira da Dominus Core</option>
         <option value="RESERVE_WALLET">Carteira de reserva</option>
       </select>
       <div>
@@ -441,6 +445,44 @@
       antes de ser aceita — isto é só leitura, ninguém (nem você) muda isso por aqui.
     </p>
     <ul class="plain" id="risk-policy-list"><li class="hint">Carregando…</li></ul>
+  </div>
+
+  <div class="card" id="card-treasury" hidden>
+    <strong>Dominus Treasury</strong>
+    <p class="hint">
+      Reserva acumulada e empréstimos internos da Dominus Core para os bots — dinheiro
+      simulado, os mesmos números que já apareciam em "Reserva" no painel principal.
+    </p>
+    <div class="grid" id="treasury-summary" style="margin-top: 8px;"></div>
+    <p class="hint" style="margin-top: 10px;"><strong>Empréstimos ativos</strong></p>
+    <ul class="plain" id="treasury-loans-list"><li class="hint">Carregando…</li></ul>
+  </div>
+
+  <div class="card" id="card-lab" hidden>
+    <strong>Dominus Lab</strong>
+    <p class="hint">
+      Protocolos que o sistema já pesquisou e classificou (liquidez, volume, idade,
+      auditorias, incidentes) — nunca inventa uma nota que os dados não sustentam.
+    </p>
+    <ul class="plain" id="lab-protocols-list"><li class="hint">Carregando…</li></ul>
+  </div>
+
+  <div class="card" id="card-network" hidden>
+    <strong>Dominus Network</strong>
+    <p class="hint">
+      O que os bots compartilharam entre si (oportunidades, resultados, vereditos do
+      conselho de bots) — uma opinião de vários bots concordando nunca vira um fato.
+    </p>
+    <ul class="plain" id="network-events-list"><li class="hint">Carregando…</li></ul>
+  </div>
+
+  <div class="card" id="card-ai" hidden>
+    <strong>Dominus AI</strong>
+    <p class="hint">
+      O que o sistema já aprendeu de verdade com operações simuladas passadas, por faixa
+      de liquidez — é a mesma informação que já ajusta o tamanho das operações automáticas.
+    </p>
+    <ul class="plain" id="ai-insights-list"><li class="hint">Ainda sem aprendizado suficiente.</li></ul>
   </div>
 </div>
 
@@ -748,6 +790,122 @@
     }
   }
 
+  async function refreshTreasury() {
+    const summary = document.getElementById("treasury-summary");
+    const loansList = document.getElementById("treasury-loans-list");
+    try {
+      const reserves = await api("/api/reserves");
+      const totalReserve = reserves.reduce((sum, r) => sum + r.balance_usd, 0);
+      summary.innerHTML = tile("Reserva total (Dominus Treasury)", fmtUsd(totalReserve));
+    } catch (err) {
+      summary.innerHTML = '<p class="hint">' + escapeHtml(messageFor(err)) + "</p>";
+    }
+    try {
+      const loans = await api("/api/loans");
+      const active = loans.filter((l) => l.status !== "PAID_OFF" && l.status !== "DEFAULTED");
+      if (!active.length) {
+        loansList.innerHTML = '<li class="hint">Nenhum empréstimo ativo no momento.</li>';
+      } else {
+        loansList.innerHTML = active
+          .map(
+            (l) =>
+              "<li><span>" +
+              escapeHtml(l.loan_id) +
+              " (" +
+              escapeHtml(l.interest_model) +
+              ")</span><span>" +
+              fmtUsd(l.remaining_balance_usd) +
+              " restantes</span></li>"
+          )
+          .join("");
+      }
+    } catch (err) {
+      loansList.innerHTML = '<li class="hint">' + escapeHtml(messageFor(err)) + "</li>";
+    }
+  }
+
+  async function refreshLab() {
+    const list = document.getElementById("lab-protocols-list");
+    try {
+      const protocols = await api("/api/protocols");
+      if (!protocols.length) {
+        list.innerHTML = '<li class="hint">Nenhum protocolo pesquisado ainda.</li>';
+        return;
+      }
+      list.innerHTML = protocols
+        .slice(0, 20)
+        .map(
+          (p) =>
+            "<li><span>" +
+            escapeHtml(p.name) +
+            " (" +
+            escapeHtml(p.blockchain) +
+            ")</span><span>" +
+            escapeHtml(p.status) +
+            (p.risk_score != null ? " · risco " + Math.round(p.risk_score) : "") +
+            "</span></li>"
+        )
+        .join("");
+    } catch (err) {
+      list.innerHTML = '<li class="hint">' + escapeHtml(messageFor(err)) + "</li>";
+    }
+  }
+
+  async function refreshNetwork() {
+    const list = document.getElementById("network-events-list");
+    try {
+      const events = await api("/api/learning-events?limit=20");
+      if (!events.length) {
+        list.innerHTML = '<li class="hint">Nenhuma troca entre bots ainda.</li>';
+        return;
+      }
+      list.innerHTML = events
+        .map(
+          (e) =>
+            "<li style=\"flex-direction: column; align-items: flex-start; gap: 2px;\"><span>" +
+            escapeHtml(e.title) +
+            '</span><span class="hint">' +
+            escapeHtml(e.kind) +
+            "</span></li>"
+        )
+        .join("");
+    } catch (err) {
+      list.innerHTML = '<li class="hint">' + escapeHtml(messageFor(err)) + "</li>";
+    }
+  }
+
+  async function refreshAI() {
+    const list = document.getElementById("ai-insights-list");
+    try {
+      const insights = await api("/api/pattern-insights");
+      if (!insights.length) {
+        list.innerHTML = '<li class="hint">Ainda sem aprendizado suficiente.</li>';
+        return;
+      }
+      list.innerHTML = insights
+        .map((i) => {
+          const range = liquidityRangeLabel(i.liquidity_bucket_tag);
+          const trend = i.confidence_multiplier > 1 ? "pos" : i.confidence_multiplier < 1 ? "neg" : "";
+          return (
+            "<li><span>Liquidez " +
+            escapeHtml(range) +
+            " (" +
+            i.samples_count +
+            " operações)</span><span class=\"" +
+            trend +
+            '">' +
+            fmtUsd(i.average_pnl_usd) +
+            " médio · " +
+            i.confidence_multiplier.toFixed(2) +
+            "x</span></li>"
+          );
+        })
+        .join("");
+    } catch (err) {
+      list.innerHTML = '<li class="hint">' + escapeHtml(messageFor(err)) + "</li>";
+    }
+  }
+
   let daytradeSettingsLoaded = false;
 
   async function refreshDaytradeStatus() {
@@ -995,7 +1153,7 @@
     if (!mother) {
       mother = await api("/api/bots/mother", {
         method: "POST",
-        body: JSON.stringify({ name: "Mother Bot", initial_capital_usd: motherCapital || 1000 }),
+        body: JSON.stringify({ name: "Dominus Core", initial_capital_usd: motherCapital || 1000 }),
       });
     }
 
@@ -1083,6 +1241,10 @@
     await refreshTicker();
     await refreshSuggestions();
     await refreshRiskPolicy();
+    await refreshTreasury();
+    await refreshLab();
+    await refreshNetwork();
+    await refreshAI();
   }
 
   function initSettingsForm() {

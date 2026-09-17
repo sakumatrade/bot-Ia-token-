@@ -19,6 +19,10 @@ struct DashboardView: View {
                     botsSection
                     autoTradingSection
                     riskPolicySection
+                    treasurySection
+                    labSection
+                    networkSection
+                    aiSection
                 } else {
                     disconnectedState
                 }
@@ -124,7 +128,7 @@ struct DashboardView: View {
         value.formatted(.currency(code: "USD"))
     }
 
-    /// Creates the Mother Bot if missing, spawns a Son, and activates it
+    /// Creates the Dominus Core if missing, spawns a Son, and activates it
     /// with the fixed $5 simulated stake — same as `scripts/activate_bot.sh`
     /// and the browser dashboard's "Criar bot" card. Simulated capital
     /// only; see `docs/ARCHITECTURE.md#security`.
@@ -177,7 +181,7 @@ struct DashboardView: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            // The Mother Bot (no parent) is never individually paused —
+            // The Dominus Core (no parent) is never individually paused —
             // pausing takes a Son out of the autonomous loop, mirroring
             // POST /api/bots/{id}/pause's own restriction.
             if bot.parentId != nil, bot.state != "DEAD" {
@@ -257,6 +261,92 @@ struct DashboardView: View {
 
     private func percent(_ value: Double) -> String {
         (value).formatted(.percent.precision(.fractionLength(0)))
+    }
+
+    /// Dominus Treasury: reserve balance + internal loans from the
+    /// Dominus Core to its bots (spec sections 17, 19) - the same
+    /// simulated numbers already shown as "Reserva" above, just grouped
+    /// with loan detail.
+    private var treasurySection: some View {
+        let totalReserve = appState.reserves.reduce(0) { $0 + $1.balanceUsd }
+        let activeLoans = appState.loans.filter { $0.status != "PAID_OFF" && $0.status != "DEFAULTED" }
+        return VStack(alignment: .leading, spacing: 8) {
+            Text("Dominus Treasury").font(.headline)
+            Text("Reserva total: \(currency(totalReserve))").font(.caption)
+            if activeLoans.isEmpty {
+                Text("Nenhum empréstimo ativo no momento.").font(.caption).foregroundStyle(.secondary)
+            } else {
+                ForEach(activeLoans) { loan in
+                    riskRow(loan.loanId, currency(loan.remainingBalanceUsd) + " restantes")
+                }
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.secondary.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    /// Dominus Lab: protocols the Research Lab has discovered and scored
+    /// (spec sections 24/25).
+    private var labSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Dominus Lab").font(.headline)
+            if appState.protocols.isEmpty {
+                Text("Nenhum protocolo pesquisado ainda.").font(.caption).foregroundStyle(.secondary)
+            } else {
+                ForEach(appState.protocols.prefix(10)) { protocolItem in
+                    riskRow(protocolItem.name, protocolItem.status)
+                }
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.secondary.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    /// Dominus Network: what bots have broadcast to each other, including
+    /// council verdicts (spec section 9) - an opinion, even a unanimous
+    /// one, is never shown as a fact.
+    private var networkSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Dominus Network").font(.headline)
+            if appState.learningEvents.isEmpty {
+                Text("Nenhuma troca entre bots ainda.").font(.caption).foregroundStyle(.secondary)
+            } else {
+                ForEach(appState.learningEvents.prefix(10)) { event in
+                    Text(event.title).font(.caption)
+                }
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.secondary.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    /// Dominus AI: what PatternLearner has actually learned from real
+    /// (simulated) outcomes so far (spec section 26) - the exact same
+    /// data already nudging position sizing, never a bigger claim.
+    private var aiSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Dominus AI").font(.headline)
+            if appState.patternInsights.isEmpty {
+                Text("Ainda sem aprendizado suficiente.").font(.caption).foregroundStyle(.secondary)
+            } else {
+                ForEach(appState.patternInsights) { insight in
+                    riskRow(
+                        "\(insight.samplesCount) operações",
+                        currency(insight.averagePnlUsd) + " médio · \(String(format: "%.2f", insight.confidenceMultiplier))x"
+                    )
+                }
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.secondary.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
 

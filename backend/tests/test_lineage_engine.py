@@ -70,7 +70,7 @@ def test_lineage_tree_shape(lineage_engine):
     lineage_engine.spawn_son(son_a, name="Son 001-A")
 
     tree = lineage_engine.lineage_tree(mother.id)
-    assert tree["name"] == "Mother Bot"
+    assert tree["name"] == "Dominus Core"
     assert len(tree["children"]) == 2
     son_a_node = next(c for c in tree["children"] if c["name"] == "Son 001")
     assert len(son_a_node["children"]) == 1

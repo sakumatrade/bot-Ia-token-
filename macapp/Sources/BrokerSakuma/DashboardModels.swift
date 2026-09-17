@@ -79,3 +79,49 @@ struct RiskPolicySummary: Codable, Equatable {
     let perBotMaxLossUsd: Double
     let perBotMaxLossPctOfCapital: Double?
 }
+
+/// Mirrors `api/schemas.py`'s `ReserveSummary` (Dominus Treasury).
+struct ReserveSummary: Codable, Equatable, Identifiable {
+    let id: String
+    let botId: String?
+    let balanceUsd: Double
+}
+
+/// Mirrors `api/schemas.py`'s `BotLoanSummary` (Dominus Treasury) — only
+/// the fields this app displays.
+struct BotLoanSummary: Codable, Equatable, Identifiable {
+    let id: String
+    let loanId: String
+    let interestModel: String
+    let status: String
+    let remainingBalanceUsd: Double
+}
+
+/// Mirrors `api/schemas.py`'s `ProtocolSummary` (Dominus Lab) — only the
+/// fields this app displays; extra backend fields decode fine and are
+/// ignored.
+struct ProtocolSummary: Codable, Equatable, Identifiable {
+    let id: String
+    let name: String
+    let blockchain: String
+    let status: String
+    let riskScore: Double?
+}
+
+/// Mirrors `api/schemas.py`'s `LearningEventSummary` (Dominus Network) —
+/// what bots have broadcast to each other, spec section 9.
+struct LearningEventSummary: Codable, Equatable, Identifiable {
+    let id: String
+    let kind: String
+    let title: String
+}
+
+/// Mirrors `api/schemas.py`'s `PatternInsightSummary` (Dominus AI) —
+/// what PatternLearner has actually learned so far, spec section 26.
+struct PatternInsightSummary: Codable, Equatable, Identifiable {
+    var id: String { liquidityBucketTag }
+    let liquidityBucketTag: String
+    let samplesCount: Int
+    let averagePnlUsd: Double
+    let confidenceMultiplier: Double
+}

@@ -9,8 +9,10 @@ from broker_sakuma.api.schemas import (
     AddWalletRequest,
     BotLoanSummary,
     GrowthResponse,
+    LearningEventSummary,
     OpportunitySummary,
     PaperTradeSummary,
+    PatternInsightSummary,
     ProtocolSummary,
     ReserveSummary,
     ResearchReportSummary,
@@ -21,6 +23,7 @@ from broker_sakuma.api.schemas import (
 from broker_sakuma.config import Settings
 from broker_sakuma.core.enums import WalletKind, WalletType
 from broker_sakuma.db import models
+from broker_sakuma.engines.pattern_learning import PatternLearner
 from broker_sakuma.engines.wallet_manager import DuplicateWalletError, WalletManager
 
 router = APIRouter(tags=["misc"], dependencies=[Depends(require_api_key)])
@@ -101,6 +104,26 @@ def list_loans(db: Session = Depends(get_db)) -> list[models.BotLoan]:
 def list_reserves(db: Session = Depends(get_db)) -> list[models.Reserve]:
     stmt = select(models.Reserve).order_by(models.Reserve.updated_at.desc())
     return list(db.execute(stmt).scalars())
+
+
+@router.get("/learning-events", response_model=list[LearningEventSummary])
+def list_learning_events(
+    db: Session = Depends(get_db), limit: int = _limit_query(), offset: int = Query(default=0, ge=0)
+) -> list[models.LearningEvent]:
+    """Dominus Network: broadcasts between bots (BotCommunicationEngine)
+    and council verdicts (BotCouncil) — spec section 9."""
+
+    stmt = select(models.LearningEvent).order_by(models.LearningEvent.created_at.desc()).offset(offset).limit(limit)
+    return list(db.execute(stmt).scalars())
+
+
+@router.get("/pattern-insights", response_model=list[PatternInsightSummary])
+def list_pattern_insights(db: Session = Depends(get_db)) -> list[dict[str, object]]:
+    """Dominus AI: what PatternLearner has actually learned so far, in the
+    open — the exact same data that already nudges position sizing (spec
+    section 26)."""
+
+    return PatternLearner(db).bucket_insights()
 
 
 @router.get("/wallets", response_model=list[WalletSummary])

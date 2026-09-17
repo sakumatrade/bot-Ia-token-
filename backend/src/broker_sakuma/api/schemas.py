@@ -182,7 +182,7 @@ class CreateMotherBotRequest(BaseModel):
     ``docs/ARCHITECTURE.md#security``: there is no code path anywhere in
     this backend that can move real funds)."""
 
-    name: str = "Mother Bot"
+    name: str = "Dominus Core"
     initial_capital_usd: float = 1000.0
 
 
@@ -235,6 +235,35 @@ class GrowthSuggestionSummary(BaseModel):
     average_pnl_usd: float
     status: str
     created_at: datetime
+
+
+class LearningEventSummary(BaseModel):
+    """Dominus Network: what bots have broadcast to each other via
+    BotCommunicationEngine/BotCouncil (spec section 9) — every entry
+    carries an explicit InfoClassification; a hypothesis or council
+    opinion is never presented as a fact."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    source_bot_id: str | None
+    kind: str
+    title: str
+    content: str | None
+    related_thesis_id: str | None
+    created_at: datetime
+
+
+class PatternInsightSummary(BaseModel):
+    """Dominus AI: one row per liquidity bucket with at least one real
+    (simulated) outcome — see engines/pattern_learning.py's
+    ``bucket_insights``. This is exactly what already nudges position
+    sizing; nothing here is a projection or a promise."""
+
+    liquidity_bucket_tag: str
+    samples_count: int
+    average_pnl_usd: float
+    confidence_multiplier: float
 
 
 class GrowthResponse(BaseModel):

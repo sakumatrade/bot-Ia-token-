@@ -1478,6 +1478,74 @@ balanced (no local Swift toolchain in this environment — real
 compilation is confirmed via the GitHub Actions macOS build, same as
 every other Swift change this project has made).
 
+## Rebrand, phases 6-10: Dominus Core, Treasury, Lab, Network, AI (all remaining modules, in one pass)
+
+The user asked to finish every remaining module automatically, without
+being asked which order, and delivered fully tested. Went through the
+rest of the user's own nomenclature table in one pass, following the
+exact same principle as Dominus Risk: reuse what already exists, surface
+it, change no trading behavior. Nothing here is a new engine — every
+module maps onto data/logic this project already had.
+
+- **Dominus Core** (Mother Bot rename): `LineageEngine.create_mother_bot`'s
+  default name and `CreateMotherBotRequest`'s default both changed from
+  "Mother Bot" to "Dominus Core" — a plain data default, so existing
+  historical rows named "Mother Bot" are untouched (nothing renamed
+  retroactively; spec: never alter history). Updated every place that
+  explicitly sent "Mother Bot" as a literal string rather than relying on
+  the default: the browser dashboard's "Criar bot" card, `scripts/
+  activate_bot.sh`'s API call and echoed messages, and the macOS app's
+  `APIClient.createAndActivateBot`. `test_lineage_tree_shape` (which calls
+  `create_mother_bot()` with no args) updated to assert the new default.
+- **Dominus Treasury** (Reserve + BotLoan): no new backend endpoint
+  needed — `/api/reserves` and `/api/loans` already existed and were
+  simply never surfaced in either UI. New "Dominus Treasury" card/section
+  in both the browser dashboard and macOS app, showing total reserve and
+  active (non-paid-off, non-defaulted) loans with remaining balance.
+- **Dominus Lab** (Research/Protocol Discovery): reused `/api/protocols`
+  (the actively-populated table — `/api/research`'s own docstring already
+  notes `research_reports` is still unused). New card/section listing
+  each protocol's name, blockchain, status, and risk score.
+- **Dominus Network** (BotCommunicationEngine/BotCouncil): new
+  `GET /api/learning-events` (new `LearningEventSummary` schema) exposing
+  the `LearningEvent` table bots already write to when they broadcast or
+  a council convenes — this data existed with zero API access before.
+  New card/section listing recent events; a council verdict is shown as
+  what it is (an `AGENT_OPINION`), never presented as settled fact.
+- **Dominus AI** (PatternLearner): new `PatternLearner.bucket_insights()`
+  (reuses the existing `confidence_multiplier` math via a shared
+  `_multiplier_from_samples` helper, extracted to avoid duplicating it)
+  and `GET /api/pattern-insights` (new `PatternInsightSummary` schema) —
+  one row per liquidity bucket with at least one real outcome so far,
+  omitting empty buckets rather than padding with fake "no data" rows.
+  New card/section showing sample count, average P&L, and the exact
+  confidence multiplier already nudging position sizing.
+
+macOS app parity for all four: new `Codable` structs in
+`DashboardModels.swift`, fetch methods on `APIClient`, `@Published`
+state + refresh methods on `AppState`, and four new sections in
+`DashboardView`. Caught and fixed one real bug while wiring
+`fetchLearningEvents`: `APIClient`'s `get(path:)` builds its URL with
+`appendingPathComponent`, which percent-encodes `?` — a literal
+`"api/learning-events?limit=20"` path would have 404'd instead of
+applying a query string. Fixed by fetching the (backend-default-bounded)
+full list and trimming client-side instead, the same way `labSection`/
+`networkSection` already trim their own lists to 10 rows for display.
+
+Verified: 9 new backend tests (`all_bucket_tags` matches
+`liquidity_bucket_tag`, empty/populated/multiplier-matching bucket
+insights, both new endpoints' auth/empty/populated-via-engine behavior)
+— 256 total passing. Dashboard HTML's `<div>`/id-uniqueness and embedded
+JS syntax re-checked. Loaded the real dashboard in a headless browser
+after seeding all four modules with real (engine-written, not faked)
+data: Dominus Core correctly named on a fresh bot creation, and all four
+new cards rendered their real seeded data (a loan's remaining balance, a
+seeded protocol, a real council verdict, and a real pattern insight with
+its actual confidence multiplier) with zero console errors beyond the
+pre-existing harmless favicon 404. Every touched Swift file's brace/
+paren/bracket counts verified balanced; real compilation confirmed via
+the GitHub Actions macOS build as usual.
+
 ## macOS app — what the user needs to do on their own Mac
 
 Compiling in CI proves the code is correct; it does not give you a
