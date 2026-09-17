@@ -944,6 +944,21 @@ and confirm the bot's state survived the restart (same capital and trade
 count reappeared after the new server process came up against the same
 database file).
 
+## Post-Phase-17 addition: "Criar bot" button in the browser dashboard
+
+The user asked to "create these buttons in the app" right after the
+terminal menu shipped — this time meaning the one action from that menu
+not yet available as a dashboard button: creating and activating a bot.
+`web/static/index.html` gained a "Criar bot" card (name field, Mother's
+initial capital field, one button) whose `initCreateBotForm()` does
+exactly what `activate_bot.sh` does over `curl`: check for an existing
+Mother Bot, create one if missing, spawn a Son, activate it — three
+calls to the same `POST /api/bots/mother` / `/sons` / `/{id}/activate`
+endpoints from the earlier entry, client-side only, no backend change.
+Verified by replaying the exact same three requests via `curl` against a
+live server before wiring the JS, confirming the response shapes the
+form's error handling and refresh depend on.
+
 ## macOS app — what the user needs to do on their own Mac
 
 Compiling in CI proves the code is correct; it does not give you a

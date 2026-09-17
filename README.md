@@ -140,6 +140,15 @@ added this way is always `WATCH_ONLY`. Nothing here can sign or send a
 real transaction; see `docs/ARCHITECTURE.md#security` and
 `engines/signer.py` for why that's a structural guarantee, not a policy.
 
+## Creating and activating a bot
+
+The browser dashboard's "Criar bot" card does this with a button: it
+creates the Mother Bot if one doesn't exist yet (using whatever simulated
+starting capital you enter, only used the first time), spawns a new Son,
+and activates it — funding it with the fixed **$5 simulated stake**
+(spec section 10's $5 rule). It's a thin client-side wrapper over the
+same three endpoints below; no backend change needed to add it.
+
 ## Creating and activating a bot from the terminal
 
 With the Local API running (above), the easiest option is one script that
