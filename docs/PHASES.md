@@ -1081,6 +1081,49 @@ and confirmed `/api/opportunities` returns exactly the descriptions the
 ticker renders, labeled 🧪 simulated throughout so it's never mistaken
 for a real market feed.
 
+## Post-Phase-17 addition: web↔native deep link, and declining an embedded auto-updating agent
+
+Two more asks arrived together: reciprocal linking between the browser
+dashboard and the native app (the native app already had a button
+opening the browser; this closes the loop the other way), and — in the
+same message — "link my Claude AI inside the app so Claude can update
+the code automatically."
+
+**Web→native deep link**: `macapp/Resources/Info.plist` now registers a
+`brokersakuma://` URL scheme (`CFBundleURLTypes`), validated well-formed
+via `plistlib` the same way this file was checked in the packaging-scripts
+phase. `BrokerSakumaApp.swift`'s dashboard `WindowGroup` handles it via
+`.onOpenURL` by activating the app (`NSApp.activate`). The browser
+dashboard's ☰ Menu gained "Abrir no aplicativo do Mac" linking to
+`brokersakuma://open`. Documented honestly rather than left to be
+discovered as broken: a custom URL scheme only registers with macOS's
+Launch Services once the app has been opened as a real `.app` bundle
+(`scripts/build_mac.sh`) — a bare `swift run` process, which is how this
+project's user has been running the app throughout this session, has no
+bundle for the OS to register the scheme against, so the browser-side
+link may silently do nothing until the packaged app has been built and
+opened at least once. Verified end-to-end what's actually checkable
+without a Mac: the modified Info.plist parses as valid plist XML, and
+the served dashboard HTML contains the link with no id collisions.
+
+**Declined: an embedded agent that updates the app's own code.** This is
+architecturally the same category of risk as the API-can't-run-git
+boundary established earlier in this session, just broader in scope — a
+live financial-adjacent system able to autonomously rewrite and redeploy
+its own code is a materially different, and much larger, risk surface
+than a read-only price ticker or a manually-triggered update script.
+`docs/ARCHITECTURE.md`'s layering and every structural test in
+`test_security_hardening.py` exist specifically so changes to this
+codebase go through review and a test suite before landing — an
+in-app agent with write access to its own source would bypass exactly
+that. The safe equivalent already exists and doesn't need building: a
+Claude Code session (this one, or a local one on the user's own Mac, as
+already set up earlier in this project) proposes and tests a change,
+and `scripts/update.sh` / `scripts/auto_update_loop.sh` are how it
+reaches the running app afterward — a human-initiated (or at least
+human-supervised) step in between, not a self-modifying production
+system.
+
 ## macOS app — what the user needs to do on their own Mac
 
 Compiling in CI proves the code is correct; it does not give you a

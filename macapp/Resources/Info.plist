@@ -25,6 +25,26 @@
     <key>LSUIElement</key>
     <false/>
     <!--
+      Lets the browser dashboard's "Abrir no aplicativo do Mac" link
+      (web/static/index.html) bring this app to the front via
+      brokersakuma://open, handled in BrokerSakumaApp.swift's onOpenURL.
+      Only registered with Launch Services once this app has actually
+      been opened as a real "Broker Sakuma.app" bundle (scripts/build_mac.sh)
+      at least once — a plain `swift run` process has no bundle for macOS
+      to register the scheme against.
+    -->
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>com.sakumatrade.brokersakuma</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>brokersakuma</string>
+            </array>
+        </dict>
+    </array>
+    <!--
       The app talks to the Local API over plain HTTP on 127.0.0.1/localhost
       only (see backend README's "Running the Local API"), never over the
       public internet, so App Transport Security needs a narrow, explicit

@@ -179,8 +179,18 @@ same three endpoints below; no backend change needed to add it.
 The native macOS app (`macapp/`) has the same "Criar bot" card, a bots
 list with Pausar/Retomar per bot, and a Ligar/Desligar toggle for the
 autonomous loop — the same `APIClient` calls as the browser dashboard,
-just in Swift. Both surfaces also show a permanent "MODO SIMULAÇÃO"
+just in Swift. Both surfaces also show a permanent "modo de testes"
 banner so it's never ambiguous that nothing on screen is real money.
+
+The native app's header has a button that opens the browser dashboard;
+the browser dashboard's ☰ Menu has "Abrir no aplicativo do Mac" going
+the other way, via a `brokersakuma://` URL scheme registered in
+`macapp/Resources/Info.plist`. That scheme only gets registered with
+macOS once the app has actually been launched as a real
+`Broker Sakuma.app` bundle (`scripts/build_mac.sh`) at least once — a
+plain `swift run` process has no bundle for macOS to register it
+against, so the browser-side link may not do anything until you've built
+and opened the packaged app once.
 
 ## Creating and activating a bot from the terminal
 

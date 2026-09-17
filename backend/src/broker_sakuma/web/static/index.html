@@ -135,7 +135,8 @@
     flex-direction: column;
     gap: 2px;
   }
-  .menu-dropdown button {
+  .menu-dropdown button,
+  .menu-dropdown a {
     text-align: left;
     border: none;
     background: transparent;
@@ -143,8 +144,13 @@
     border-radius: 6px;
     font-size: 13px;
     width: 100%;
+    display: block;
+    color: var(--text);
+    text-decoration: none;
+    box-sizing: border-box;
   }
-  .menu-dropdown button:hover { background: var(--bg); }
+  .menu-dropdown button:hover,
+  .menu-dropdown a:hover { background: var(--bg); }
   .ticker-wrap {
     display: flex;
     align-items: center;
@@ -211,6 +217,7 @@
           <button data-target="card-wallets">Carteiras</button>
           <hr style="border: none; border-top: 1px solid var(--border); margin: 4px 0;" />
           <button id="menu-update">Atualizar o sistema…</button>
+          <a href="brokersakuma://open" id="menu-open-app">Abrir no aplicativo do Mac</a>
         </div>
       </div>
     </div>
@@ -851,6 +858,18 @@
         "No Terminal, rode:\n\n./scripts/update.sh\n\n" +
         "ou, se estiver usando o menu interativo, escolha a opção 2 (Atualizar o sistema)."
       );
+    });
+
+    document.getElementById("menu-open-app").addEventListener("click", () => {
+      dropdown.hidden = true;
+      // No reliable way to detect whether brokersakuma:// actually opened
+      // anything (custom URL schemes fail silently in every browser) -
+      // this note covers the one real precondition instead of guessing.
+      setTimeout(() => {
+        if (!document.hidden) {
+          console.info("Se nada abriu, o aplicativo do Mac precisa ter sido aberto pelo menos uma vez como Broker Sakuma.app (scripts/build_mac.sh), não apenas via 'swift run'.");
+        }
+      }, 800);
     });
   }
 
