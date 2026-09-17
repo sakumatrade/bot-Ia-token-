@@ -38,6 +38,22 @@ funds; see `docs/ARCHITECTURE.md#security` for why.
 The Local API (spec section 38) requires an explicit API key — with none
 configured, every request is rejected (401) rather than running open.
 
+The easiest option — one command, no manual `export`, and it frees the
+port itself instead of failing with "address already in use" if an old
+copy is still running:
+
+```bash
+./scripts/start_server.sh              # port 8765 by default
+PORT=9000 ./scripts/start_server.sh    # a different port
+```
+
+The first run generates an API key and saves it to
+`backend/.local_api.key` (git-ignored, never committed) so it's the same
+key every time you restart — the script prints it on every run. Stop it
+with Ctrl+C; run it again any time, from any state, to restart cleanly.
+
+Equivalent by hand, if you'd rather manage it yourself:
+
 ```
 cd backend
 export BROKER_SAKUMA_LOCAL_API__API_KEY="choose-a-long-random-secret"
@@ -51,6 +67,12 @@ curl -H "X-API-Key: choose-a-long-random-secret" http://127.0.0.1:8765/api/dashb
 ```
 
 The macOS app's `APIClient` defaults to `http://127.0.0.1:8765`.
+
+If you used `start_server.sh`, every `curl` example in this README that
+sets `API_KEY="..."` by hand can instead read the saved key:
+```bash
+API_KEY="$(cat backend/.local_api.key)"
+```
 
 ## Browser dashboard (works on any OS, no Xcode needed)
 

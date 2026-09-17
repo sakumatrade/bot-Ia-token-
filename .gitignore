@@ -9,6 +9,7 @@ venv/
 .mypy_cache/
 .ruff_cache/
 *.sqlite3
+*.db
 .coverage
 htmlcov/
 
