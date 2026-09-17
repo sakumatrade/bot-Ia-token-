@@ -883,6 +883,67 @@ neutral-until-enough-samples rule, and that the multiplier moves in the
 right direction (up after positive outcomes, down after negative ones)
 and stays bounded regardless of how extreme the outcomes are.
 
+## Post-Phase-17 addition: one script, one update path, and a real bug each surfaced
+
+Two more terminal-convenience requests followed the pattern-learning
+work: **"create a button to update the system straight from the code
+being built in the cloud"**, then **"create an app with these functions:
+update, bot update, automatic API."**
+
+The first request's literal reading — a button *inside* the running
+web dashboard or app that pulls from GitHub — isn't something that
+should exist: nothing in this codebase may shell out (`import
+subprocess`/`os` is forbidden repo-wide by
+`test_no_module_anywhere_shells_out_or_evals`), on purpose, because an
+API that can run arbitrary commands is a real remote-code-execution
+surface, not just an inconvenience to route around. `scripts/update.sh`
+is the safe equivalent: one terminal command that does `git pull` (on
+whatever branch is currently checked out, not a hardcoded one), reinstalls
+the backend, and hands off to `start_server.sh`.
+
+`scripts/start_server.sh` itself also shipped here: it generates an API
+key once and persists it to `backend/.local_api.key` (a `*.key` file,
+already covered by the existing `.gitignore` pattern — no new ignore
+rule needed) so the user never has to `export` it by hand again, and it
+frees its own port first (`lsof -ti:$PORT | xargs kill`) instead of
+failing with "address already in use," which had come up repeatedly in
+this session every time an old server was left running in another
+window.
+
+The second request — "an app with these functions" — became
+`scripts/broker_sakuma.sh`: a single interactive terminal menu
+(update / start-or-check server / create+activate a bot / status /
+toggle autonomous trading / open the dashboard) that runs the server as
+a background process so the same terminal window stays usable
+afterward — removing the "open a second window" step that had caused
+confusion multiple times earlier in this session. It's a thin wrapper:
+every menu option just calls one of the existing scripts or one `curl`
+to an existing endpoint: no new backend code.
+
+Testing it end-to-end (not just reading it) caught a real bug: the menu's
+"create and activate a bot" option called `activate_bot.sh` without
+passing through its own `$PORT`, so whenever the menu ran on a
+non-default port, the child script silently defaulted to 8765 instead,
+found nothing listening there, and `activate_bot.sh`'s own `fail_if_error`
+— written to expect a numeric HTTP status — crashed on `[ "" -ge 400 ]`
+("integer expression expected") under `set -e` with no useful message
+at all, just an abrupt stop after the first line of output. Fixed two
+ways: the menu now exports `BROKER_SAKUMA_API_URL` to match its own
+`$PORT` before calling `activate_bot.sh`, and `activate_bot.sh`'s
+`fail_if_error` now checks the code is actually numeric first and prints
+"Não consegui conectar em $API_URL — o servidor está rodando?" instead
+of crashing silently — a real robustness fix that also helps anyone
+running `activate_bot.sh` directly against a server that isn't up yet,
+not just this new menu's edge case.
+
+Verified against a real running server through the full menu, not just
+individual commands: start in the background, create+activate a bot,
+check status, toggle autonomous trading on and confirm it actually
+traded (`trades_count` went from 0 to 2), update-and-restart mid-session
+and confirm the bot's state survived the restart (same capital and trade
+count reappeared after the new server process came up against the same
+database file).
+
 ## macOS app — what the user needs to do on their own Mac
 
 Compiling in CI proves the code is correct; it does not give you a

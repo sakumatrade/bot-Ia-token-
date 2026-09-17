@@ -16,7 +16,9 @@ backend/    Python 3.12 / FastAPI / SQLAlchemy backend — the system's core.
 macapp/     macOS SwiftUI app (source only; requires Xcode/macOS to build —
             see docs/PHASES.md for the environment constraint).
 extension/  Safari Web Extension (later phase; no private-key access).
-scripts/    Build/packaging scripts (build_mac.sh, package_dmg.sh, notarize.sh).
+scripts/    broker_sakuma.sh is the one command to remember (see below);
+            everything else here (build_mac.sh, package_dmg.sh, notarize.sh,
+            start_server.sh, update.sh, activate_bot.sh) is what it wraps.
 docs/       Architecture and phase reports.
 ```
 
@@ -32,6 +34,30 @@ pytest -q
 Defaults are conservative: `environment=simulation`,
 `trading.live_trading_enabled=false`. Nothing in this codebase can move real
 funds; see `docs/ARCHITECTURE.md#security` for why.
+
+## The easiest way to use everything: one menu
+
+```bash
+./scripts/broker_sakuma.sh
+```
+
+An interactive terminal menu — no other command to remember, and no
+second terminal window needed (it runs the server in the background):
+
+```
+1) Iniciar/verificar o servidor
+2) Atualizar o sistema (buscar as ultimas novidades)
+3) Criar e ativar um novo bot ($5 simulados)
+4) Ver status e bots
+5) Ligar/desligar a operacao automatica
+6) Abrir o painel no navegador
+0) Sair
+```
+
+It's a thin wrapper over `start_server.sh`, `update.sh`, `activate_bot.sh`
+and a couple of `curl` calls to `/api/system/auto-trading` — everything
+below in this README works the same whether you use this menu or run
+those pieces by hand.
 
 ## Updating to the latest code
 

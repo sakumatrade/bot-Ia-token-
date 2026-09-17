@@ -51,6 +51,11 @@ request() {
 fail_if_error() {
   # $1 = http_code, $2 = response body, $3 = step description
   local code="$1" body="$2" step="$3"
+  if ! [[ "$code" =~ ^[0-9]+$ ]]; then
+    echo "Nao consegui conectar em $API_URL — o servidor esta rodando?" >&2
+    echo "Passo que falhou: $step" >&2
+    exit 1
+  fi
   if [ "$code" -ge 400 ]; then
     echo "Erro em '$step' (HTTP $code):" >&2
     echo "$body" >&2
