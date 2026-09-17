@@ -2,11 +2,12 @@
 own docstring calls out (spec sections 3, 22, 28) — once a launch passes
 triage as WATCH, something has to propose a concrete, priced order before
 the RiskEngine/PaperExecutor can act on it. This is a deliberately simple,
-fully-documented placeholder strategy (fixed position sizing, a seeded
-synthetic exit price), not a sophisticated trading algorithm — it exists
-so an activated bot can trade *on its own*, with no manual
-`/api/system/run-cycle` call needed per trade, not to claim intelligence
-it doesn't have.
+fully-documented strategy (fixed baseline position sizing plus a bounded
+learned adjustment, a seeded synthetic exit price) — not a sophisticated
+trading algorithm, and not a claim to intelligence it doesn't have, but
+genuinely not fixed either: `engines/pattern_learning.py`'s
+`PatternLearner` scales each position by how well its liquidity bucket
+has actually performed across past round trips (spec section 26).
 
 Every order this proposes still goes through the same `PaperExecutor`
 (which itself calls `RiskEngine` and `MaximumLossPolicy`) every other
@@ -16,6 +17,12 @@ ever writes to `paper_trades`. It also only ever reacts to
 `SyntheticLaunchGenerator`'s clearly-labeled fake launches — this module
 is not connected to Pump.fun and cannot be pointed at a real feed without
 a real `PumpFunProvider` implementation existing first (spec section 61).
+
+The synthetic exit-price walk is deliberately, and openly, correlated
+with a launch's liquidity (higher liquidity skews toward a better
+outcome) — a plausible, simple heuristic for a mock feed, not real
+market data, and it exists specifically so `PatternLearner` has an
+actual, honest pattern to detect instead of pure noise to react to.
 """
 
 from __future__ import annotations
@@ -32,6 +39,7 @@ from broker_sakuma.adapters.pumpfun.provider import PumpFunProvider
 from broker_sakuma.config import AutoTradingConfig, RiskPolicyConfig
 from broker_sakuma.core.enums import BotState, ThesisState, TradeSide
 from broker_sakuma.db import models
+from broker_sakuma.engines.pattern_learning import PatternLearner
 from broker_sakuma.engines.telegram_notifications import ProfitNotifier
 from broker_sakuma.paper.paper_executor import PaperExecutor, PaperOrderRequest
 
@@ -57,6 +65,7 @@ class AutonomousTradingCycle:
         self.config = auto_trading_config
         self.monitor = PumpFunMonitor(session, provider, risk_config)
         self.executor = PaperExecutor(session, risk_config, notifier=notifier)
+        self.learner = PatternLearner(session)
 
     def _tradeable_bots(self) -> list[models.Bot]:
         """Active bots with a thesis that has actually started (spec
@@ -91,12 +100,17 @@ class AutonomousTradingCycle:
         return result
 
     def _trade_one(self, bot: models.Bot, decision, run_id: str, result: CycleResult) -> None:
+        liquidity_usd = decision.liquidity_analysis.liquidity_usd
         entry_price = 1.0
-        position_usd = min(
-            bot.capital_operational_usd * self.config.position_fraction_of_capital,
-            self.risk_config.max_position_usd,
-            bot.capital_operational_usd,
-        )
+
+        # Baseline size, then a bounded (0.5x-1.5x) nudge from what this
+        # liquidity bucket has actually done in past round trips — still
+        # clamped against every existing risk/position limit below, so
+        # the learned adjustment can shrink or modestly grow a position,
+        # never bypass a cap.
+        baseline_usd = bot.capital_operational_usd * self.config.position_fraction_of_capital
+        learned_usd = baseline_usd * self.learner.confidence_multiplier(liquidity_usd)
+        position_usd = min(learned_usd, self.risk_config.max_position_usd, bot.capital_operational_usd)
         if position_usd < 0.01:
             return
         quantity = position_usd / entry_price
@@ -108,7 +122,7 @@ class AutonomousTradingCycle:
                 side=TradeSide.BUY,
                 reference_price=entry_price,
                 quantity=quantity,
-                liquidity_usd=decision.liquidity_analysis.liquidity_usd,
+                liquidity_usd=liquidity_usd,
                 slippage_pct=0.01,
             ),
             idempotency_key=f"autocycle-{run_id}-{bot.id}-{decision.token_id}-buy",
@@ -120,10 +134,15 @@ class AutonomousTradingCycle:
             result.bots_died.append(bot.id)
             return
 
-        # A seeded, deterministic-per-launch synthetic price walk — this is
+        # A seeded, deterministic-per-launch synthetic price walk, openly
+        # biased toward a better outcome the more liquid the launch was —
         # not a market price feed, just a stand-in exit price for the mock
-        # launch's whole (instantaneous) lifecycle in this cycle.
-        price_walk = random.Random(f"{decision.launch.mint_address}:{bot.id}").uniform(-0.4, 0.6)
+        # launch's whole (instantaneous) lifecycle in this cycle, and the
+        # one honest "pattern" PatternLearner is meant to pick up on.
+        liquidity_bias = min(0.3, liquidity_usd / 20_000.0)
+        price_walk = random.Random(f"{decision.launch.mint_address}:{bot.id}").uniform(
+            -0.4 + liquidity_bias, 0.6 + liquidity_bias
+        )
         exit_price = max(0.01, entry_price * (1 + price_walk))
 
         sell = self.executor.execute(
@@ -133,12 +152,14 @@ class AutonomousTradingCycle:
                 side=TradeSide.SELL,
                 reference_price=exit_price,
                 quantity=quantity,
-                liquidity_usd=decision.liquidity_analysis.liquidity_usd,
+                liquidity_usd=liquidity_usd,
                 slippage_pct=0.01,
             ),
             idempotency_key=f"autocycle-{run_id}-{bot.id}-{decision.token_id}-sell",
         )
         if sell.approved:
             result.trades_executed += 1
+            if sell.trade is not None:
+                self.learner.record_outcome(bot.id, liquidity_usd, sell.trade.simulated_pnl_usd)
             if sell.bot_died:
                 result.bots_died.append(bot.id)

@@ -832,6 +832,57 @@ tests, which go through the real `TestClient` (a fresh session per
 request) rather than a single shared `db_session` fixture — the same
 gap that let the bug through undetected until now.
 
+## Post-Phase-17 addition: genuine pattern learning (still simulated)
+
+After the last entry's live controls, the user again asked for real
+money, was declined again, asked "então pra que esse bot serve?" (then
+what is this bot for?), and after an honest answer, said (paraphrased):
+"the AI is smarter than me, that's why I'm building a bot that learns
+patterns... keep building it until it's 100% what I need." Real-money
+execution is still declined, same reasoning as every earlier entry — but
+"a bot that learns patterns" was a genuine, buildable gap: the
+autonomous loop's strategy (previous entry) was deliberately simple and
+static, and `learning_engine.py`/`collective_memory.py` already existed
+but were never wired into the live decision loop.
+
+Building this honestly required confronting one thing first: the
+existing synthetic mock feed produced pure noise (a price walk with no
+relationship to anything), so a "learning" system bolted onto it would
+have had nothing real to learn — exactly the kind of fake behavior the
+spec forbids (section 61), just moved one level down. The fix:
+`autonomous_trading_cycle.py`'s synthetic exit-price walk now has an
+openly-documented, deliberate bias — more liquidity skews toward a
+better outcome — so there's an honest, findable pattern for a learner to
+detect, clearly labeled as a mock-feed heuristic, never real market data.
+
+`engines/pattern_learning.py`'s `PatternLearner` is the learner: it
+buckets each round trip by liquidity, records the outcome via the
+*existing* `CollectiveMemoryStore` (a tagged memory entry — no new
+table, no DB migration needed), and returns a confidence multiplier
+bounded to `[0.5, 1.5]` once a bucket has at least 5 samples (spec
+section 9: one result is a hypothesis, not a fact). `AutonomousTradingCycle
+._trade_one` applies that multiplier to the baseline position size,
+*then* still clamps against `RiskPolicyConfig.max_position_usd` and the
+bot's own capital — the same enforcement order every other phase uses,
+so learning can only make a position smaller or modestly larger than the
+fixed baseline, never bypass a cap. This mirrors the exact isolation
+`learning_engine.py` already established for a different engine (spec
+section 7): `pattern_learning.py` has no import of `RiskPolicyConfig`,
+`MaximumLossPolicy`, or anything kill-switch-related — it structurally
+cannot touch a safety limit even by accident.
+
+Verified end-to-end against a real running server: an activated bot with
+$100,000 of Mother capital behind it ran for ~50 seconds with the
+autonomous loop on, executed 10 round trips (20 trades) before
+`RiskPolicyConfig.max_trades_per_day` (still fully enforced, unmodified)
+correctly capped it for the day, and left behind real
+`CollectiveMemory` rows tagged by liquidity bucket with genuinely
+different outcomes per bucket — not fabricated, the actual recorded
+results of that run. 8 new unit tests cover bucket grouping, the
+neutral-until-enough-samples rule, and that the multiplier moves in the
+right direction (up after positive outcomes, down after negative ones)
+and stays bounded regardless of how extreme the outcomes are.
+
 ## macOS app — what the user needs to do on their own Mac
 
 Compiling in CI proves the code is correct; it does not give you a

@@ -155,6 +155,21 @@ this can never become live trading (`trading.live_trading_enabled` stays
 `False` regardless of this flag) and why it can never be pointed at a
 real Pump.fun feed.
 
+### Learning from patterns (still simulated)
+
+Position sizing isn't fixed — `engines/pattern_learning.py`'s
+`PatternLearner` buckets every round trip by the launch's liquidity and
+remembers each outcome (via the existing `CollectiveMemory` table, no new
+schema). Once a bucket has enough samples (5 by default), future trades
+in that bucket get a bounded 0.5x–1.5x size adjustment based on how that
+bucket has actually performed — a real feedback loop, not a fixed rule,
+but still clamped by every existing risk/position limit below it. The
+synthetic mock feed deliberately (and openly) correlates liquidity with
+outcome so there's an honest pattern to find, not just noise to react to
+— see the module's docstring for the full explanation, including the
+hard boundary (same one `learning_engine.py` already has) that this can
+never touch a safety limit, the kill switch, or the $5 rule itself.
+
 ### Turning it on/off live, and adjusting it, without restarting the server
 
 You don't have to set the environment variable above and restart — the
