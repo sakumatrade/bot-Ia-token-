@@ -35,7 +35,7 @@ struct DashboardView: View {
     }
 
     private var simulationBanner: some View {
-        Text("⚠️ MODO SIMULAÇÃO — dinheiro fictício. Nada aqui move fundos reais nem toca em carteiras de verdade.")
+        Text("🧪 Modo de testes — dinheiro simulado, para você aprender e testar estratégias sem risco.")
             .font(.caption.weight(.semibold))
             .foregroundStyle(.black)
             .frame(maxWidth: .infinity)

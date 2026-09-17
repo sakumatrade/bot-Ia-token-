@@ -160,7 +160,7 @@
 <body>
 <div class="wrap">
   <div class="sim-banner">
-    ⚠️ MODO SIMULAÇÃO — dinheiro fictício. Nada aqui move fundos reais nem toca em carteiras de verdade.
+    🧪 Modo de testes — dinheiro simulado, para você aprender e testar estratégias sem risco.
   </div>
   <header>
     <div class="title-row">
@@ -176,6 +176,8 @@
           <button data-target="card-chart">Gráfico do bot</button>
           <button data-target="card-alerts">Alertas</button>
           <button data-target="card-wallets">Carteiras</button>
+          <hr style="border: none; border-top: 1px solid var(--border); margin: 4px 0;" />
+          <button id="menu-update">Atualizar o sistema…</button>
         </div>
       </div>
     </div>
@@ -770,6 +772,16 @@
         if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
         dropdown.hidden = true;
       });
+    });
+
+    document.getElementById("menu-update").addEventListener("click", () => {
+      dropdown.hidden = true;
+      alert(
+        "Esta página não pode buscar atualizações sozinha — nada aqui tem permissão para rodar comandos " +
+        "no seu computador (é uma proteção de segurança de propósito).\n\n" +
+        "No Terminal, rode:\n\n./scripts/update.sh\n\n" +
+        "ou, se estiver usando o menu interativo, escolha a opção 2 (Atualizar o sistema)."
+      );
     });
   }
 
