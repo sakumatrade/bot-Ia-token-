@@ -27,17 +27,75 @@ actor APIClient {
 
     func fetchDashboard(apiKey: String) async throws -> DashboardSummary {
         let data = try await get(path: "api/dashboard", apiKey: apiKey)
-        let decoder = JSONDecoder()
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-        do {
-            return try decoder.decode(DashboardSummary.self, from: data)
-        } catch {
-            throw APIError.decodingFailed
-        }
+        return try decode(DashboardSummary.self, from: data)
     }
 
     func sendSystemAction(_ action: SystemAction, apiKey: String) async throws {
         _ = try await post(path: "api/system/\(action.rawValue)", apiKey: apiKey)
+    }
+
+    func fetchBots(apiKey: String) async throws -> [BotSummary] {
+        let data = try await get(path: "api/bots", apiKey: apiKey)
+        return try decode([BotSummary].self, from: data)
+    }
+
+    func fetchAutoTradingStatus(apiKey: String) async throws -> AutoTradingStatus {
+        let data = try await get(path: "api/system/auto-trading", apiKey: apiKey)
+        return try decode(AutoTradingStatus.self, from: data)
+    }
+
+    func setAutoTrading(enabled: Bool, apiKey: String) async throws -> AutoTradingStatus {
+        let data = try await post(path: "api/system/auto-trading", apiKey: apiKey, jsonBody: ["enabled": enabled])
+        return try decode(AutoTradingStatus.self, from: data)
+    }
+
+    func pauseBot(id: String, apiKey: String) async throws {
+        _ = try await post(path: "api/bots/\(id)/pause", apiKey: apiKey)
+    }
+
+    func resumeBot(id: String, apiKey: String) async throws {
+        _ = try await post(path: "api/bots/\(id)/resume", apiKey: apiKey)
+    }
+
+    /// Creates the Mother Bot if one doesn't exist yet, spawns a Son, and
+    /// activates it — funding it with the fixed $5 simulated stake (spec
+    /// section 10's $5 rule). The same three endpoints
+    /// `scripts/activate_bot.sh` and the browser dashboard's "Criar bot"
+    /// card already use over curl/fetch; no wallet or blockchain call
+    /// anywhere in this flow.
+    func createAndActivateBot(name: String?, motherInitialCapitalUsd: Double, apiKey: String) async throws -> BotSummary {
+        let existingBots = try await fetchBots(apiKey: apiKey)
+        let motherId: String
+        if let existingMother = existingBots.first(where: { $0.parentId == nil }) {
+            motherId = existingMother.id
+        } else {
+            let motherData = try await post(
+                path: "api/bots/mother",
+                apiKey: apiKey,
+                jsonBody: ["name": "Mother Bot", "initial_capital_usd": motherInitialCapitalUsd]
+            )
+            motherId = try decode(BotSummary.self, from: motherData).id
+        }
+
+        var sonBody: [String: Any] = ["parent_id": motherId]
+        if let name, !name.isEmpty {
+            sonBody["name"] = name
+        }
+        let sonData = try await post(path: "api/bots/sons", apiKey: apiKey, jsonBody: sonBody)
+        let son = try decode(BotSummary.self, from: sonData)
+
+        _ = try await post(path: "api/bots/\(son.id)/activate", apiKey: apiKey)
+        return son
+    }
+
+    private func decode<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        do {
+            return try decoder.decode(type, from: data)
+        } catch {
+            throw APIError.decodingFailed
+        }
     }
 
     private func get(path: String, apiKey: String) async throws -> Data {
@@ -51,6 +109,15 @@ actor APIClient {
         var request = URLRequest(url: baseURL.appendingPathComponent(path))
         request.httpMethod = "POST"
         request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
+        return try await perform(request)
+    }
+
+    private func post(path: String, apiKey: String, jsonBody: [String: Any]) async throws -> Data {
+        var request = URLRequest(url: baseURL.appendingPathComponent(path))
+        request.httpMethod = "POST"
+        request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: jsonBody)
         return try await perform(request)
     }
 

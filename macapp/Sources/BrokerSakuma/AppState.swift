@@ -15,6 +15,8 @@ final class AppState: ObservableObject {
     static let apiKeyDefaultsKey = "brokerSakuma.apiKey"
 
     @Published private(set) var dashboard: DashboardSummary?
+    @Published private(set) var bots: [BotSummary] = []
+    @Published private(set) var autoTradingStatus: AutoTradingStatus?
     @Published private(set) var lastError: Error?
     @Published private(set) var isLoading = false
     @Published var displayMode: DisplayMode = .simple
@@ -70,6 +72,8 @@ final class AppState: ObservableObject {
             dashboard = nil
             lastError = error
         }
+        await refreshBots()
+        await refreshAutoTradingStatus()
     }
 
     func sendSystemAction(_ action: SystemAction) async {
@@ -81,6 +85,67 @@ final class AppState: ObservableObject {
             try await apiClient.sendSystemAction(action, apiKey: apiKey)
             lastError = nil
             await refresh()
+        } catch {
+            lastError = error
+        }
+    }
+
+    /// A failed bots/auto-trading refresh is deliberately best-effort: it
+    /// doesn't blank out the primary dashboard metrics the way a failed
+    /// `refresh()` does — those two lists are secondary to the main
+    /// connected/disconnected state.
+    func refreshBots() async {
+        guard !apiKey.isEmpty else { return }
+        if let fetched = try? await apiClient.fetchBots(apiKey: apiKey) {
+            bots = fetched
+        }
+    }
+
+    func refreshAutoTradingStatus() async {
+        guard !apiKey.isEmpty else { return }
+        if let status = try? await apiClient.fetchAutoTradingStatus(apiKey: apiKey) {
+            autoTradingStatus = status
+        }
+    }
+
+    func createBot(name: String?, motherInitialCapitalUsd: Double = 1000) async {
+        guard !apiKey.isEmpty else {
+            lastError = APIError.missingAPIKey
+            return
+        }
+        do {
+            _ = try await apiClient.createAndActivateBot(name: name, motherInitialCapitalUsd: motherInitialCapitalUsd, apiKey: apiKey)
+            lastError = nil
+            await refresh()
+        } catch {
+            lastError = error
+        }
+    }
+
+    func pauseBot(id: String) async {
+        guard !apiKey.isEmpty else { return }
+        do {
+            try await apiClient.pauseBot(id: id, apiKey: apiKey)
+            await refreshBots()
+        } catch {
+            lastError = error
+        }
+    }
+
+    func resumeBot(id: String) async {
+        guard !apiKey.isEmpty else { return }
+        do {
+            try await apiClient.resumeBot(id: id, apiKey: apiKey)
+            await refreshBots()
+        } catch {
+            lastError = error
+        }
+    }
+
+    func toggleAutoTrading(enabled: Bool) async {
+        guard !apiKey.isEmpty else { return }
+        do {
+            autoTradingStatus = try await apiClient.setAutoTrading(enabled: enabled, apiKey: apiKey)
         } catch {
             lastError = error
         }

@@ -41,3 +41,25 @@ struct DashboardSummary: Codable, Equatable {
     let deadBots: Int
     let resurrectedBots: Int
 }
+
+/// Mirrors `api/schemas.py`'s `BotSummary` — only the fields this app
+/// actually displays; extra backend fields decode fine and are ignored.
+struct BotSummary: Codable, Equatable, Identifiable {
+    let id: String
+    let name: String
+    let state: String
+    let parentId: String?
+    let capitalOperationalUsd: Double
+    let cumulativePnlUsd: Double
+    let tradesCount: Int
+}
+
+/// Mirrors `api/schemas.py`'s `AutoTradingStatusResponse` (spec sections
+/// 3, 22, 28's autonomous PAPER-trading loop — never live trading).
+struct AutoTradingStatus: Codable, Equatable {
+    let enabled: Bool
+    let running: Bool
+    let intervalSeconds: Double
+    let launchesPerCycle: Int
+    let positionFractionOfCapital: Double
+}

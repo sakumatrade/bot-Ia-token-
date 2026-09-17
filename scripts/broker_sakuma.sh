@@ -135,6 +135,29 @@ open_dashboard() {
   command -v open >/dev/null 2>&1 && open "$API_URL/dashboard" 2>/dev/null
 }
 
+AUTO_UPDATE_PIDFILE="$ROOT_DIR/backend/.auto_update.pid"
+
+auto_update_running() {
+  [ -f "$AUTO_UPDATE_PIDFILE" ] && kill -0 "$(cat "$AUTO_UPDATE_PIDFILE")" 2>/dev/null
+}
+
+toggle_auto_update() {
+  if auto_update_running; then
+    kill "$(cat "$AUTO_UPDATE_PIDFILE")" 2>/dev/null
+    rm -f "$AUTO_UPDATE_PIDFILE"
+    echo "Atualizacao automatica desligada."
+    return
+  fi
+
+  read -rp "Verificar a cada quantos minutos? (Enter para 15): " MINUTES
+  MINUTES="${MINUTES:-15}"
+  nohup "$ROOT_DIR/scripts/auto_update_loop.sh" "$MINUTES" >/dev/null 2>&1 &
+  disown
+  echo $! > "$AUTO_UPDATE_PIDFILE"
+  echo "Atualizacao automatica ligada — verifica a cada ${MINUTES} min e reinicia o servidor sozinha quando achar novidades."
+  echo "Log: backend/auto_update.log"
+}
+
 while true; do
   echo ""
   echo "===== Broker Sakuma ====="
@@ -144,6 +167,11 @@ while true; do
   echo "4) Ver status e bots"
   echo "5) Ligar/desligar a operacao automatica"
   echo "6) Abrir o painel no navegador"
+  if auto_update_running; then
+    echo "7) Desligar atualizacao automatica do sistema (LIGADA)"
+  else
+    echo "7) Ligar atualizacao automatica do sistema (verifica sozinho e atualiza)"
+  fi
   echo "0) Sair"
   read -rp "Escolha uma opcao: " OPTION
   case "$OPTION" in
@@ -153,6 +181,7 @@ while true; do
     4) show_status ;;
     5) toggle_auto_trading ;;
     6) open_dashboard ;;
+    7) toggle_auto_update ;;
     0) echo "Ate mais!"; exit 0 ;;
     *) echo "Opcao invalida." ;;
   esac

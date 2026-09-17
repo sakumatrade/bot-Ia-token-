@@ -23,6 +23,13 @@ with a launch's liquidity (higher liquidity skews toward a better
 outcome) — a plausible, simple heuristic for a mock feed, not real
 market data, and it exists specifically so `PatternLearner` has an
 actual, honest pattern to detect instead of pure noise to react to.
+
+A bot that dies here has no human watching to write up why by hand
+(spec section 13: a bot's history must never be silently discarded) —
+so this is the one place in the codebase that creates a `PostMortem`
+automatically, grounded only in what this cycle actually observed
+(the liquidity, the entry/exit price, which thesis was active), never
+fabricated detail.
 """
 
 from __future__ import annotations
@@ -40,6 +47,7 @@ from broker_sakuma.config import AutoTradingConfig, RiskPolicyConfig
 from broker_sakuma.core.enums import BotState, ThesisState, TradeSide
 from broker_sakuma.db import models
 from broker_sakuma.engines.pattern_learning import PatternLearner
+from broker_sakuma.engines.post_mortem_engine import BotPostMortemEngine
 from broker_sakuma.engines.telegram_notifications import ProfitNotifier
 from broker_sakuma.paper.paper_executor import PaperExecutor, PaperOrderRequest
 
@@ -163,3 +171,27 @@ class AutonomousTradingCycle:
                 self.learner.record_outcome(bot.id, liquidity_usd, sell.trade.simulated_pnl_usd)
             if sell.bot_died:
                 result.bots_died.append(bot.id)
+                self._record_post_mortem(bot, decision, entry_price=entry_price, exit_price=exit_price, liquidity_usd=liquidity_usd)
+
+    def _record_post_mortem(self, bot: models.Bot, decision, entry_price: float, exit_price: float, liquidity_usd: float) -> None:
+        thesis = (
+            self.session.execute(
+                select(models.Thesis).where(models.Thesis.bot_id == bot.id).order_by(models.Thesis.created_at.desc())
+            )
+            .scalars()
+            .first()
+        )
+        BotPostMortemEngine(self.session).create_post_mortem(
+            bot,
+            thesis_id=thesis.id if thesis else None,
+            token_id=decision.token_id,
+            entry_price=entry_price,
+            exit_price=exit_price,
+            liquidity_usd=liquidity_usd,
+            market_condition="synthetic mock feed (autonomous PAPER-trading loop)",
+            probable_cause=(
+                f"Cumulative loss reached the ${bot.max_loss_usd:.2f} max-loss ceiling after a losing "
+                f"round trip in the autonomous PAPER-trading loop (synthetic mock launch, "
+                f"liquidity ${liquidity_usd:.2f})."
+            ),
+        )

@@ -959,6 +959,75 @@ Verified by replaying the exact same three requests via `curl` against a
 live server before wiring the JS, confirming the response shapes the
 form's error handling and refresh depend on.
 
+## Post-Phase-17 addition: four self-identified improvements
+
+Asked directly what I'd improve, I named four concrete gaps and the user
+said to build all of them:
+
+1. **A permanent "MODO SIMULAÇÃO" banner.** Both the browser dashboard
+   (`web/static/index.html`) and the native macOS app (`DashboardView.swift`)
+   now show a fixed yellow banner at the top of every screen stating
+   plainly that nothing moves real funds — a cheap, high-visibility
+   guard against the confusion that came up repeatedly earlier in this
+   session about what this system actually does with money.
+
+2. **One-command first-time setup.** `scripts/setup.sh` creates the
+   backend's virtual environment (skipping that step if it already
+   exists), installs dependencies, and runs the test suite to confirm
+   the install actually works — verified for real by temporarily moving
+   `backend/.venv` aside and running the script from a clean slate
+   (Python 3.11 this time, confirming the version check's lower bound
+   isn't accidentally pinned to whatever version happened to be
+   installed before), then confirming a second run reuses the existing
+   environment instead of recreating it.
+
+3. **Automatic post-mortems for bots that die unattended.** A bot dying
+   inside the autonomous loop has no human watching to write one up by
+   hand — a real gap now that bots can die completely on their own.
+   `AutonomousTradingCycle._record_post_mortem` (in
+   `engines/autonomous_trading_cycle.py`) creates a `PostMortem`
+   automatically when a round trip's loss breaches the max-loss ceiling,
+   grounded only in what that cycle actually observed (thesis, token,
+   entry/exit price, liquidity) — never fabricated detail. Writing the
+   test caught a subtlety: the synthetic price walk is seeded by
+   `f"{mint_address}:{bot_id}"`, and `bot.id` is a fresh random UUID
+   each run, so an early version of the test (fixed liquidity, random
+   bot id) had a real but silent chance of failing depending on which
+   UUID got generated — fixed by giving the test bot an explicit fixed
+   `id`, making the outcome deterministic across runs instead of merely
+   "usually passing."
+
+4. **An automatic self-update option, without the API touching git.**
+   The user asked for a way for "the system to give itself an automatic
+   update" after already being told an in-app button can't safely run
+   `git pull` (same `subprocess`/`os` prohibition as before).
+   `scripts/auto_update_loop.sh` is the honest middle ground: a plain
+   shell script — not part of the Python backend, so it doesn't carry
+   that risk — that the user starts themselves (via
+   `broker_sakuma.sh`'s new option 7) and that checks `origin` every N
+   minutes, running `update.sh` in the background only when it actually
+   finds new commits. Verified with a near-zero interval that the
+   fetch/compare logic correctly reports "sem novidades" when nothing's
+   changed, and separately confirmed the menu's start/stop toggle
+   correctly tracks the loop's PID and can cleanly kill it.
+
+Also, closing a gap named in the earlier "what needs improving" answer:
+the **native macOS app had fallen behind the browser dashboard**. It
+gained the same "Criar bot" card, a bots list with per-bot Pausar/Retomar
+buttons, and a Ligar/Desligar toggle for the autonomous loop —
+`APIClient.swift` gained `fetchBots`, `createAndActivateBot`,
+`pauseBot`/`resumeBot`, and `fetchAutoTradingStatus`/`setAutoTrading`,
+all following the existing `get`/`post`/`decode` pattern (a new
+`post(path:apiKey:jsonBody:)` overload handles the endpoints that need a
+request body). New `BotSummary`/`AutoTradingStatus` models in
+`DashboardModels.swift`, decoded the same way `DashboardSummary` already
+is (snake_case JSON, extra backend fields ignored). This container has
+no Swift toolchain (Linux), so — as with every earlier Swift change in
+this project — correctness here rests on careful manual review plus the
+new decoding unit tests in `DashboardModelsTests.swift`; real
+verification is GitHub Actions' `macos-build.yml` (`swift build`/`swift
+test` on a real macOS runner), checked after pushing this commit.
+
 ## macOS app — what the user needs to do on their own Mac
 
 Compiling in CI proves the code is correct; it does not give you a

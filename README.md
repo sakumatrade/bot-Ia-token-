@@ -24,6 +24,16 @@ docs/       Architecture and phase reports.
 
 ## Backend quickstart
 
+The one-command version, safe to re-run any time — creates the virtual
+environment if missing, installs everything, and runs the test suite to
+confirm it worked:
+
+```bash
+./scripts/setup.sh
+```
+
+Equivalent by hand:
+
 ```
 cd backend
 python3.12 -m venv .venv && source .venv/bin/activate
@@ -51,13 +61,20 @@ second terminal window needed (it runs the server in the background):
 4) Ver status e bots
 5) Ligar/desligar a operacao automatica
 6) Abrir o painel no navegador
+7) Ligar/desligar atualizacao automatica do sistema
 0) Sair
 ```
 
-It's a thin wrapper over `start_server.sh`, `update.sh`, `activate_bot.sh`
-and a couple of `curl` calls to `/api/system/auto-trading` — everything
-below in this README works the same whether you use this menu or run
-those pieces by hand.
+It's a thin wrapper over `setup.sh`, `start_server.sh`, `update.sh`,
+`activate_bot.sh`, `auto_update_loop.sh`, and a couple of `curl` calls to
+`/api/system/auto-trading` — everything below in this README works the
+same whether you use this menu or run those pieces by hand.
+
+Option 7 checks periodically (every N minutes, your choice) for new
+commits on the current branch and updates+restarts automatically when it
+finds any — a plain shell script the user runs and can stop at any time,
+not something the API can trigger itself: see "Updating to the latest
+code" below for why that boundary exists.
 
 ## Updating to the latest code
 
@@ -148,6 +165,12 @@ starting capital you enter, only used the first time), spawns a new Son,
 and activates it — funding it with the fixed **$5 simulated stake**
 (spec section 10's $5 rule). It's a thin client-side wrapper over the
 same three endpoints below; no backend change needed to add it.
+
+The native macOS app (`macapp/`) has the same "Criar bot" card, a bots
+list with Pausar/Retomar per bot, and a Ligar/Desligar toggle for the
+autonomous loop — the same `APIClient` calls as the browser dashboard,
+just in Swift. Both surfaces also show a permanent "MODO SIMULAÇÃO"
+banner so it's never ambiguous that nothing on screen is real money.
 
 ## Creating and activating a bot from the terminal
 
